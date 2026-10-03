@@ -1,0 +1,670 @@
+import { useEffect, useState } from "react";
+import {
+  BarChart3,
+  CalendarRange,
+  CheckCircle2,
+  Clock,
+  FileText,
+  HandCoins,
+  Percent,
+  Scale,
+  TrendingUp,
+  Wallet,
+} from "lucide-react";
+import { getOutstandingReport, getSalesReport } from "../../api/reportAdminApi";
+import InvoiceStatusBadge from "../../components/invoices/InvoiceStatusBadge";
+import { formatCurrency, formatDate, humanize } from "../../lib/format";
+import { PRINT_STYLES, escapeHtml, openPrintWindow } from "../../lib/print";
+import { useAuth } from "../../context/AuthContext";
+import {
+  Alert,
+  Button,
+  Card,
+  CardHeader,
+  DataTable,
+  EmptyState,
+  Input,
+  PageHeader,
+  SkeletonStatCards,
+  StatCard,
+} from "../../components/ui";
+
+const toDateInput = (value) => {
+  const d = value instanceof Date ? value : new Date(value);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+const firstOfMonth = () => toDateInput(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+const today = () => toDateInput(new Date());
+
+const EMPTY_SALES_TOTALS = {
+  invoiceCount: 0,
+  subtotal: 0,
+  discountTotal: 0,
+  taxTotal: 0,
+  grandTotal: 0,
+  amountPaid: 0,
+  amountDue: 0,
+};
+
+const EMPTY_OUTSTANDING_TOTALS = { totalReceivable: 0, totalPayable: 0, netPosition: 0 };
+
+/**
+ * Builds a self-contained print document for the sales report — the same
+ * technique the Bills page uses to print a bill. The browser renders it and its
+ * print dialog offers "Save as PDF".
+ */
+function buildSalesReportHtml(data, range, companyName) {
+  const totals = { ...EMPTY_SALES_TOTALS, ...(data.totals || {}) };
+  const invoices = data.invoices || [];
+  const byCustomer = data.byCustomer || [];
+
+  const stat = (label, value) => `
+    <div class="stat">
+      <div class="label">${escapeHtml(label)}</div>
+      <div class="value">${escapeHtml(value)}</div>
+    </div>`;
+
+  const invoiceRows =
+    invoices
+      .map(
+        (row) => `
+      <tr>
+        <td>${escapeHtml(row.invoiceNumber)}</td>
+        <td>${escapeHtml(row.customer?.name || "—")}</td>
+        <td>${escapeHtml(formatDate(row.invoiceDate))}</td>
+        <td>${escapeHtml(humanize(row.status))}</td>
+        <td class="num">${escapeHtml(formatCurrency(row.grandTotal))}</td>
+        <td class="num">${escapeHtml(formatCurrency(row.amountPaid))}</td>
+        <td class="num">${escapeHtml(formatCurrency(row.amountDue))}</td>
+      </tr>`
+      )
+      .join("") || `<tr><td colspan="7" class="empty">No invoices in this range</td></tr>`;
+
+  const customerRows =
+    byCustomer
+      .map(
+        (row) => `
+      <tr>
+        <td>${escapeHtml(row.customer?.name || "—")}</td>
+        <td class="num">${escapeHtml(row.invoiceCount)}</td>
+        <td class="num">${escapeHtml(formatCurrency(row.grandTotal))}</td>
+        <td class="num">${escapeHtml(formatCurrency(row.amountPaid))}</td>
+        <td class="num">${escapeHtml(formatCurrency(row.amountDue))}</td>
+      </tr>`
+      )
+      .join("") || `<tr><td colspan="5" class="empty">No customer activity in this range</td></tr>`;
+
+  return `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" />
+<title>Sales Report ${escapeHtml(range.from)} to ${escapeHtml(range.to)}</title>
+<style>${PRINT_STYLES}</style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1>Sales Report</h1>
+      <div class="muted">${escapeHtml(range.from)} to ${escapeHtml(range.to)}</div>
+    </div>
+    <div style="text-align:right">
+      <strong>${escapeHtml(companyName || "Company")}</strong>
+      <div class="muted">Generated ${escapeHtml(formatDate(new Date()))}</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Summary</h2>
+    <div class="stat-row">
+      ${stat("Invoices", totals.invoiceCount)}
+      ${stat("Subtotal", formatCurrency(totals.subtotal))}
+      ${stat("Discount", formatCurrency(totals.discountTotal))}
+      ${stat("Tax", formatCurrency(totals.taxTotal))}
+      ${stat("Grand total", formatCurrency(totals.grandTotal))}
+      ${stat("Paid", formatCurrency(totals.amountPaid))}
+      ${stat("Due", formatCurrency(totals.amountDue))}
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Invoices in range (${invoices.length})</h2>
+    <table>
+      <thead><tr>
+        <th>Invoice</th><th>Customer</th><th>Issue date</th><th>Status</th>
+        <th class="num">Grand total</th><th class="num">Paid</th><th class="num">Due</th>
+      </tr></thead>
+      <tbody>${invoiceRows}</tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>By customer (${byCustomer.length})</h2>
+    <table>
+      <thead><tr>
+        <th>Customer</th><th class="num">Invoices</th>
+        <th class="num">Grand total</th><th class="num">Paid</th><th class="num">Due</th>
+      </tr></thead>
+      <tbody>${customerRows}</tbody>
+    </table>
+  </div>
+
+  <div class="footer">Generated by MarkGo</div>
+</body></html>`;
+}
+
+/** Date range picker with validation, shared by both reports. */
+function RangePicker({ from, to, onFromChange, onToChange, onApply, onReset, loading, fromError, toError }) {
+  return (
+    <Card className="p-4">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          onApply();
+        }}
+        className="flex flex-wrap items-end gap-3"
+      >
+        <Input
+          label="From"
+          type="date"
+          required
+          value={from}
+          max={to || undefined}
+          onChange={(e) => onFromChange(e.target.value)}
+          error={fromError}
+          containerClassName="w-44"
+        />
+        <Input
+          label="To"
+          type="date"
+          required
+          value={to}
+          min={from || undefined}
+          onChange={(e) => onToChange(e.target.value)}
+          error={toError}
+          containerClassName="w-44"
+        />
+        <Button type="submit" loading={loading} disabled={loading}>
+          <BarChart3 className="h-4 w-4" aria-hidden="true" />
+          {loading ? "Generating…" : "Generate report"}
+        </Button>
+        <Button type="button" variant="secondary" onClick={onReset} disabled={loading}>
+          <CalendarRange className="h-4 w-4" aria-hidden="true" />
+          This month
+        </Button>
+      </form>
+    </Card>
+  );
+}
+
+function SalesReport() {
+  const { company } = useAuth();
+  const [range, setRange] = useState({ from: firstOfMonth(), to: today() });
+  const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  // "from" | "to" | "range" — which control the message belongs to.
+  const [validation, setValidation] = useState({ message: "", field: "" });
+
+  useEffect(() => {
+    let active = true;
+
+    getSalesReport({ from: firstOfMonth(), to: today() })
+      .then((res) => {
+        if (!active) return;
+        if (res.success) setReport(res.data);
+        else setError(res.message || "Failed to load sales report.");
+      })
+      .catch((err) => {
+        if (active) setError(err.response?.data?.message || "Failed to load sales report.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // "Generate report" applies the range and then opens the printable report,
+  // the same way the Bills page prints a bill.
+  const handleGenerate = async () => {
+    if (!range.from) {
+      setValidation({ message: "Choose a start date.", field: "from" });
+      return;
+    }
+    if (!range.to) {
+      setValidation({ message: "Choose an end date.", field: "to" });
+      return;
+    }
+    if (range.from > range.to) {
+      setValidation({ message: "The start date must be on or before the end date.", field: "range" });
+      return;
+    }
+
+    setValidation({ message: "", field: "" });
+    setError("");
+    setNotice("");
+    setLoading(true);
+
+    try {
+      const res = await getSalesReport({ from: range.from, to: range.to });
+      if (!res.success) {
+        setError(res.message || "Failed to load sales report.");
+        return;
+      }
+
+      setReport(res.data);
+
+      const html = buildSalesReportHtml(res.data, range, company?.name);
+      if (!openPrintWindow(html)) {
+        setNotice("Please allow popups to generate the report PDF.");
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to generate the sales report.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReset = () => {
+    const next = { from: firstOfMonth(), to: today() };
+    setRange(next);
+    setValidation({ message: "", field: "" });
+    setError("");
+    setLoading(true);
+
+    getSalesReport(next)
+      .then((res) => {
+        if (res.success) setReport(res.data);
+        else setError(res.message || "Failed to load sales report.");
+      })
+      .catch((err) => {
+        setError(err.response?.data?.message || "Failed to load sales report.");
+      })
+      .finally(() => setLoading(false));
+  };
+
+  const totals = { ...EMPTY_SALES_TOTALS, ...(report?.totals || {}) };
+  const invoices = report?.invoices || [];
+  const byCustomer = report?.byCustomer || [];
+
+  const totalCards = [
+    {
+      label: "Invoices",
+      value: String(totals.invoiceCount || 0),
+      hint: "Issued in this range",
+      icon: FileText,
+      tone: "primary",
+    },
+    { label: "Subtotal", value: formatCurrency(totals.subtotal), hint: "Before tax", icon: Wallet, tone: "info" },
+    {
+      label: "Tax collected",
+      value: formatCurrency(totals.taxTotal),
+      hint: formatCurrency(totals.discountTotal) + " discounted",
+      icon: Percent,
+      tone: "info",
+    },
+    {
+      label: "Grand total",
+      value: formatCurrency(totals.grandTotal),
+      hint: "Total invoiced",
+      icon: TrendingUp,
+      tone: "primary",
+    },
+    {
+      label: "Paid",
+      value: formatCurrency(totals.amountPaid),
+      hint: "Collected in this range",
+      icon: CheckCircle2,
+      tone: "success",
+    },
+    {
+      label: "Due",
+      value: formatCurrency(totals.amountDue),
+      hint: "Still outstanding",
+      icon: Clock,
+      tone: "danger",
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <RangePicker
+        from={range.from}
+        to={range.to}
+        onFromChange={(from) => {
+          setRange((previous) => ({ ...previous, from }));
+          setValidation({ message: "", field: "" });
+        }}
+        onToChange={(to) => {
+          setRange((previous) => ({ ...previous, to }));
+          setValidation({ message: "", field: "" });
+        }}
+        onApply={handleGenerate}
+        onReset={handleReset}
+        loading={loading}
+        fromError={validation.field === "from" ? validation.message : ""}
+        toError={validation.field === "to" ? validation.message : ""}
+      />
+
+      {(validation.field === "range" || error) && (
+        <Alert tone="error" title={error ? "Report failed to load" : "Check the date range"}>
+          {error || validation.message}
+        </Alert>
+      )}
+
+      {notice && (
+        <Alert className="mb-4" tone="info">
+          {notice}
+        </Alert>
+      )}
+
+      {loading ? (
+        <SkeletonStatCards count={6} />
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {totalCards.map((card) => (
+            <StatCard
+              key={card.label}
+              label={card.label}
+              value={card.value}
+              hint={card.hint}
+              icon={card.icon}
+              tone={card.tone}
+            />
+          ))}
+        </div>
+      )}
+
+      <Card>
+        <CardHeader title="Invoices in range" description={`${invoices.length} invoice(s) issued`} />
+        <DataTable
+          contained
+          loading={loading}
+          columns={[
+            {
+              key: "invoiceNumber",
+              header: "Invoice",
+              render: (row) => <span className="font-medium text-ink">{row.invoiceNumber}</span>,
+            },
+            {
+              key: "customer",
+              header: "Customer",
+              render: (row) => row.customer?.name || <span className="text-muted">—</span>,
+            },
+            { key: "invoiceDate", header: "Issue date", render: (row) => formatDate(row.invoiceDate) },
+            { key: "dueDate", header: "Due date", render: (row) => formatDate(row.dueDate) },
+            { key: "status", header: "Status", render: (row) => <InvoiceStatusBadge status={row.status} /> },
+            {
+              key: "grandTotal",
+              header: "Grand total",
+              align: "right",
+              render: (row) => <span className="font-medium text-ink">{formatCurrency(row.grandTotal)}</span>,
+            },
+            {
+              key: "amountPaid",
+              header: "Paid",
+              align: "right",
+              render: (row) => <span className="text-success">{formatCurrency(row.amountPaid)}</span>,
+            },
+            {
+              key: "amountDue",
+              header: "Due",
+              align: "right",
+              render: (row) => (
+                <span className={Number(row.amountDue) > 0 ? "font-medium text-danger" : "text-muted"}>
+                  {formatCurrency(row.amountDue)}
+                </span>
+              ),
+            },
+          ]}
+          rows={invoices}
+          empty={
+            <EmptyState
+              icon={FileText}
+              title="No invoices in this range"
+              description="Try widening the date range or picking a different period."
+            />
+          }
+        />
+      </Card>
+
+      <Card>
+        <CardHeader title="By customer" description="Totals grouped per customer in this range" />
+        <DataTable
+          contained
+          loading={loading}
+          columns={[
+            {
+              key: "customer",
+              header: "Customer",
+              render: (row) => (
+                <span className="font-medium text-ink">{row.customer?.name || "—"}</span>
+              ),
+            },
+            { key: "invoiceCount", header: "Invoices", align: "right", render: (row) => row.invoiceCount },
+            {
+              key: "grandTotal",
+              header: "Grand total",
+              align: "right",
+              render: (row) => <span className="font-medium text-ink">{formatCurrency(row.grandTotal)}</span>,
+            },
+            {
+              key: "amountPaid",
+              header: "Paid",
+              align: "right",
+              render: (row) => <span className="text-success">{formatCurrency(row.amountPaid)}</span>,
+            },
+            {
+              key: "amountDue",
+              header: "Due",
+              align: "right",
+              render: (row) => (
+                <span className={Number(row.amountDue) > 0 ? "font-medium text-danger" : "text-muted"}>
+                  {formatCurrency(row.amountDue)}
+                </span>
+              ),
+            },
+          ]}
+          rows={byCustomer}
+          rowKey={(row) => row.customer?.id}
+          empty={
+            <EmptyState
+              icon={BarChart3}
+              title="No customer breakdown available"
+              description="There are no invoiced customers in this range."
+            />
+          }
+        />
+      </Card>
+    </div>
+  );
+}
+
+function OutstandingReport() {
+  const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    getOutstandingReport()
+      .then((res) => {
+        if (!active) return;
+        if (res.success) setReport(res.data);
+        else setError(res.message || "Failed to load outstanding report.");
+      })
+      .catch((err) => {
+        if (active) setError(err.response?.data?.message || "Failed to load outstanding report.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const totals = { ...EMPTY_OUTSTANDING_TOTALS, ...(report?.totals || {}) };
+  const receivables = report?.receivables || [];
+  const payables = report?.payables || [];
+
+  const panel = (isReceivable) => {
+    const rows = isReceivable ? receivables : payables;
+
+    return (
+      <Card>
+        <CardHeader
+          title={isReceivable ? "Who owes me" : "Whom I owe"}
+          description={
+            isReceivable
+              ? "Outstanding customer receivables"
+              : "Outstanding vendor payables"
+          }
+        />
+        <DataTable
+          contained
+          columns={[
+            {
+              key: "name",
+              header: isReceivable ? "Customer" : "Vendor",
+              render: (row) => (
+                <span className="font-medium text-ink">
+                  {isReceivable ? row.customerName : row.vendorName}
+                </span>
+              ),
+            },
+            {
+              key: "count",
+              header: isReceivable ? "Invoices" : "Bills",
+              align: "right",
+              render: (row) => (isReceivable ? row.invoiceCount : row.billCount),
+            },
+            {
+              key: "billed",
+              header: isReceivable ? "Invoiced" : "Billed",
+              align: "right",
+              render: (row) =>
+                formatCurrency(isReceivable ? row.totalInvoiced : row.totalBilled),
+            },
+            {
+              key: "totalPaid",
+              header: "Paid",
+              align: "right",
+              render: (row) => <span className="text-success">{formatCurrency(row.totalPaid)}</span>,
+            },
+            {
+              key: "outstanding",
+              header: "Outstanding",
+              align: "right",
+              render: (row) => (
+                <span className="font-medium text-danger">{formatCurrency(row.outstanding)}</span>
+              ),
+            },
+            {
+              key: "oldestDueDate",
+              header: "Oldest due",
+              render: (row) => <span className="text-body">{formatDate(row.oldestDueDate)}</span>,
+            },
+          ]}
+          rows={rows}
+          rowKey={(row) => (isReceivable ? row.customerId : row.vendorId)}
+          empty={
+            <EmptyState
+              compact
+              icon={HandCoins}
+              title={
+                isReceivable ? "No outstanding receivables" : "No outstanding payables"
+              }
+              description={
+                isReceivable
+                  ? "Every customer invoice is settled."
+                  : "You have no unpaid vendor bills."
+              }
+            />
+          }
+        />
+      </Card>
+    );
+  };
+
+  if (error) {
+    return <Alert tone="error" title="Report failed to load">{error}</Alert>;
+  }
+
+  return (
+    <div className="space-y-4">
+      {loading ? (
+        <SkeletonStatCards count={3} />
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatCard
+            label="Total receivable"
+            value={formatCurrency(totals.totalReceivable)}
+            hint="Owed to you"
+            icon={HandCoins}
+            tone="warning"
+          />
+          <StatCard
+            label="Total payable"
+            value={formatCurrency(totals.totalPayable)}
+            hint="Owed by you"
+            icon={Wallet}
+            tone="danger"
+          />
+          <StatCard
+            label="Net position"
+            value={formatCurrency(totals.netPosition)}
+            hint={totals.netPosition >= 0 ? "In your favour" : "Against you"}
+            icon={Scale}
+            tone={totals.netPosition >= 0 ? "success" : "danger"}
+          />
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
+        {panel(true)}
+        {panel(false)}
+      </div>
+    </div>
+  );
+}
+
+const TABS = [
+  { key: "SALES", label: "Sales report" },
+  { key: "OUTSTANDING", label: "Outstanding" },
+];
+
+export default function CompanyAdminReport() {
+  const [activeTab, setActiveTab] = useState("SALES");
+
+  return (
+    <>
+      <PageHeader
+        title="Reports"
+        subtitle="Analyse sales performance and track who owes you and whom you owe."
+      />
+
+      <div className="mb-4 inline-flex rounded-lg border border-line bg-surface p-1 shadow-card">
+        {TABS.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setActiveTab(tab.key)}
+            aria-pressed={activeTab === tab.key}
+            className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+              activeTab === tab.key ? "bg-primary-600 text-white" : "text-body hover:bg-slate-100"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "SALES" ? <SalesReport /> : <OutstandingReport />}
+    </>
+  );
+}
