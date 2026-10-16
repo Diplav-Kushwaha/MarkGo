@@ -40,6 +40,9 @@ export async function rotateRefreshToken(rawToken, req) {
   if (!existing) {
     return { error: "not_found" };
   }
+  if (existing.user?.isActive === false) {
+    return { error: "user_inactive" };
+  }
   if (existing.revoked || existing.expiresAt < new Date()) {
     await prisma.refreshToken.updateMany({
       where: { userId: existing.userId, revoked: false },

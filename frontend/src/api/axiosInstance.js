@@ -21,6 +21,7 @@ function getCookie(name) {
  * rather than pulling in a full event bus for one use case.
  */
 let authFailureHandler = null;
+let csrfTokenValue = null;
 export function setAuthFailureHandler(handler) {
   authFailureHandler = handler;
 }
@@ -32,7 +33,7 @@ export function setAuthFailureHandler(handler) {
 axiosInstance.interceptors.request.use((config) => {
   const method = (config.method || "get").toUpperCase();
   if (!["GET", "HEAD", "OPTIONS"].includes(method)) {
-    const csrfToken = getCookie("csrfToken");
+    const csrfToken = csrfTokenValue || getCookie("csrfToken");
     if (csrfToken) {
       config.headers["x-csrf-token"] = csrfToken;
     }
@@ -54,17 +55,33 @@ function flushQueue(error) {
 }
 
 axiosInstance.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (response.config?.url?.includes("/api/csrf-token")) {
+      csrfTokenValue = response.data?.csrfToken || null;
+    }
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
     const status = error.response?.status;
     const code = error.response?.data?.code;
+    const isCompanyAdminApiCall = originalRequest?.url?.includes("/api/admin/");
+    const isSubscriptionApiCall = originalRequest?.url?.includes("/api/admin/subscription");
+
+    if (
+      status === 403 &&
+      code === "SUBSCRIPTION_REQUIRED" &&
+      isCompanyAdminApiCall &&
+      !isSubscriptionApiCall &&
+      window.location.pathname !== "/admin/subscription-required"
+    ) {
+      window.location.assign("/admin/subscription-required");
+    }
+
     const isRefreshCall =
       originalRequest?.url?.includes("/api/auth/refresh") ||
       originalRequest?.url?.includes("/api/customer/refresh") ||
-      originalRequest?.url?.includes("/api/vendor/refresh") ||
-      originalRequest?.url?.includes("/api/staff/refresh") ||
-      originalRequest?.url?.includes("/api/accountant/refresh");
+      originalRequest?.url?.includes("/api/vendor/refresh");
 
     if (status === 401 && code === "TOKEN_EXPIRED" && !originalRequest._retry && !isRefreshCall) {
       if (isRefreshing) {
@@ -79,17 +96,11 @@ axiosInstance.interceptors.response.use(
       try {
         const isCustomerRequest = originalRequest?.url?.includes("/api/customer");
         const isVendorRequest = originalRequest?.url?.includes("/api/vendor");
-        const isStaffRequest = originalRequest?.url?.includes("/api/staff");
-        const isAccountantRequest = originalRequest?.url?.includes("/api/accountant");
         let refreshEndpoint = "/api/auth/refresh";
         if (isCustomerRequest) {
           refreshEndpoint = "/api/customer/refresh";
         } else if (isVendorRequest) {
           refreshEndpoint = "/api/vendor/refresh";
-        } else if (isStaffRequest) {
-          refreshEndpoint = "/api/staff/refresh";
-        } else if (isAccountantRequest) {
-          refreshEndpoint = "/api/accountant/refresh";
         }
 
         await axiosInstance.post(refreshEndpoint);

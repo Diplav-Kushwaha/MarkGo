@@ -37,8 +37,8 @@ export default class ErrorBoundary extends Component {
     const isDev = import.meta.env.DEV;
 
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
-        <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-xl shadow-slate-200/60">
+      <div className="flex min-h-screen items-center justify-center bg-page px-4">
+        <div className="w-full max-w-lg rounded-card border border-line bg-surface p-8 text-center shadow-float">
           <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
             <svg
               viewBox="0 0 24 24"
@@ -56,10 +56,10 @@ export default class ErrorBoundary extends Component {
             </svg>
           </span>
 
-          <h1 className="mt-4 text-xl font-bold tracking-tight text-slate-900">
+          <h1 className="mt-4 text-xl font-bold tracking-tight text-ink">
             Something went wrong on this page.
           </h1>
-          <p className="mt-2 text-sm text-slate-500">
+          <p className="mt-2 text-sm text-body">
             The error has been logged to the browser console. Reload to try again, or head back to
             the home page.
           </p>
@@ -75,13 +75,13 @@ export default class ErrorBoundary extends Component {
             <button
               type="button"
               onClick={this.handleReload}
-              className="inline-flex w-full items-center justify-center rounded-xl bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200 sm:w-auto"
+              className="inline-flex w-full items-center justify-center rounded-xl bg-[#111A3A] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#1B2550] focus:outline-none focus:ring-4 focus:ring-primary-600/20 sm:w-auto"
             >
               Reload page
             </button>
             <a
               href="/"
-              className="inline-flex w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:border-blue-800 hover:text-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-100 sm:w-auto"
+              className="inline-flex w-full items-center justify-center rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-primary-600 hover:bg-primary-50 hover:text-primary-800 focus:outline-none focus:ring-4 focus:ring-primary-600/20 sm:w-auto"
             >
               Go to home
             </a>

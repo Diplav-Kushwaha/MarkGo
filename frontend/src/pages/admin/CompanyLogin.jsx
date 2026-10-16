@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Building2, Mail, Receipt, TrendingUp } from "lucide-react";
+import { Building2, Phone, Receipt, TrendingUp } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { validatePhone } from "../../lib/phone";
 import AuthLayout, { AuthSubmitButton } from "../../components/auth/AuthLayout";
 import AuthField, {
   AuthAlert,
@@ -13,28 +14,39 @@ export default function CompanyLogin() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // If the user was redirected here by ProtectedRoute, send them back there; otherwise go to dashboard
   const redirectPath = location.state?.from?.pathname || "/admin/dashboard";
 
   const [formData, setFormData] = useState({
-    email: "",
+    phoneNumber: "",
     password: "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [phoneError, setPhoneError] = useState("");
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setError("");
+    setPhoneError("");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setPhoneError("");
+
+    const phoneResult = validatePhone(formData.phoneNumber);
+    if (!phoneResult.valid) {
+      setPhoneError(phoneResult.error);
+      return;
+    }
 
     try {
       setLoading(true);
-      const res = await loginCompany(formData);
+      const res = await loginCompany({
+        phoneNumber: phoneResult.normalized,
+        password: formData.password,
+      });
 
       if (res.success) {
         navigate(redirectPath, { replace: true });
@@ -69,32 +81,44 @@ export default function CompanyLogin() {
       ]}
       footerNote="All activity in your workspace is recorded against your company account."
       footerLink={
-        <p className="text-sm text-slate-500">
-          Need a company account?{" "}
-          <Link
-            to="/plans"
-            className="font-semibold text-blue-800 hover:text-blue-700 hover:underline underline-offset-4"
-          >
-            Register your company
-          </Link>
-        </p>
+        <>
+          <p className="text-sm text-body">
+            Need a company account?{" "}
+            <Link
+              to="/plans"
+              className="font-semibold text-primary-800 hover:text-primary-700 hover:underline underline-offset-4"
+            >
+              Register your company
+            </Link>
+          </p>
+          <p className="mt-2 text-sm text-body">
+            <Link
+              to="/"
+              className="font-semibold text-primary-800 hover:text-primary-700 hover:underline underline-offset-4"
+            >
+              Back to home
+            </Link>
+          </p>
+        </>
       }
     >
       <AuthAlert message={error} />
 
       <form className="mt-6 space-y-5" onSubmit={handleSubmit} noValidate>
         <AuthField
-          id="email"
-          name="email"
-          type="email"
-          label="Email address"
-          icon={Mail}
-          autoComplete="username"
+          id="phoneNumber"
+          name="phoneNumber"
+          type="tel"
+          label="Phone number"
+          icon={Phone}
+          autoComplete="tel"
           required
-          value={formData.email}
+          value={formData.phoneNumber}
           onChange={handleChange}
-          placeholder="admin@company.com"
+          placeholder="9876543210"
           disabled={loading}
+          error={phoneError}
+          hint={phoneError ? undefined : "10 digits. No spaces, dashes, or +91."}
         />
 
         <AuthPasswordField
@@ -106,7 +130,6 @@ export default function CompanyLogin() {
           onChange={handleChange}
           disabled={loading}
           labelAction={
-            /* No forgot-password route exists in this app yet. */
             <span
               className="cursor-not-allowed text-xs font-medium text-slate-400"
               title="Password reset is not available yet"

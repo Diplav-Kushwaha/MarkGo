@@ -3,12 +3,13 @@ import {
   CreditCard,
   FileText,
   LayoutDashboard,
+  Layers,
   Package,
   Receipt,
   Settings,
   Store,
-  UserCog,
   Users,
+  Wrench,
 } from "lucide-react";
 
 /**
@@ -21,6 +22,9 @@ export const ADMIN_NAV_GROUPS = [
     label: "Main",
     items: [
       { label: "Dashboard", to: "/admin/dashboard", icon: LayoutDashboard },
+      // The ten reports are reached from inside the Reports page as cards, not
+      // from this sidebar. Without `end`, this one item stays the active link
+      // on every report sub-page under /admin/reports.
       { label: "Reports", to: "/admin/reports", icon: BarChart3 },
     ],
   },
@@ -40,12 +44,15 @@ export const ADMIN_NAV_GROUPS = [
   },
   {
     label: "Catalog",
-    items: [{ label: "Products & Services", to: "/admin/products", icon: Package }],
+    items: [
+      { label: "Products", to: "/admin/products", icon: Package },
+      { label: "Services", to: "/admin/services", icon: Wrench },
+      { label: "Unit & Category", to: "/admin/unit-category", icon: Layers },
+    ],
   },
   {
     label: "Manage",
     items: [
-      { label: "Team", to: "/admin/team", icon: UserCog },
       { label: "Subscription", to: "/admin/subscription", icon: CreditCard },
       { label: "Settings", to: "/admin/settings", icon: Settings },
     ],
@@ -59,7 +66,9 @@ const HIDDEN_SECTIONS = [{ to: "/admin/payments", label: "Payments" }];
 
 /**
  * Matches on whole path segments so /admin/invoices/abc highlights "Invoices"
- * but /admin/invoices-archive would not.
+ * but /admin/invoices-archive would not. The report pages live under
+ * /admin/reports/..., so the "Reports" item keeps matching them and stays the
+ * active link on every report page.
  */
 function matches(pathname, to) {
   if (pathname === to) return true;

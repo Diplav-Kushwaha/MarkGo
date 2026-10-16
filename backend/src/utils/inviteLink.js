@@ -9,9 +9,7 @@ const FRONTEND_URL = process.env.FRONTEND_URL || process.env.APP_URL || "";
 /** Frontend route that accepts each role's invite token. */
 export const INVITE_PATHS = {
   customer: "/accept-invite",
-  staff: "/accept-staff-invite",
   vendor: "/accept-vendor-invite",
-  accountant: "/accept-accountant-invite",
 };
 
 export function buildInviteLink(role, rawToken) {

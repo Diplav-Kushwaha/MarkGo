@@ -12,11 +12,13 @@ import { SAButton, SASelect, SATone } from "./SuperAdminUi";
 import { SAInput } from "./SuperAdminUi";
 import { Modal } from "../../components/ui";
 import { formatDate } from "../../lib/format";
+import { isValidPhone, normalizePhone, INVALID_PHONE_MESSAGE } from "../../lib/phone";
 
 const EMPTY_FORM = {
   companyName: "",
   companyEmail: "",
   companyAddress: "",
+  state: "",
   gstNumber: "",
   city: "",
   country: "",
@@ -100,22 +102,25 @@ export default function AddCompanyModal({ isOpen, onClose, onSuccess }) {
     else if (form.companyName.trim().length < 2) {
       found.companyName = "Company name must be at least 2 characters.";
     }
-    if (!form.companyEmail.trim()) found.companyEmail = "Company email is required.";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.companyEmail.trim())) {
+    if (form.companyEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.companyEmail.trim())) {
       found.companyEmail = "Enter a valid company email address.";
     }
     if (!form.companyAddress.trim() || form.companyAddress.trim().length < 5) {
       found.companyAddress = "Company address must be at least 5 characters.";
     }
-    if (!form.city.trim()) found.city = "City is required.";
-    if (!form.country.trim()) found.country = "Country is required.";
+    if (!form.state.trim()) {
+      found.state = "State is required.";
+    } else if (form.state.trim().length < 2) {
+      found.state = "State must be at least 2 characters.";
+    }
     if (!form.fullName.trim()) found.fullName = "Full name is required.";
-    if (!form.email.trim()) found.email = "Admin login email is required.";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
       found.email = "Enter a valid email address.";
     }
-    if (!/^\+?[1-9]\d{7,14}$/.test(form.phoneNumber.trim())) {
-      found.phoneNumber = "Enter a valid phone number, digits only (with optional country code).";
+    if (!form.phoneNumber.trim()) {
+      found.phoneNumber = "Phone number is required.";
+    } else if (!isValidPhone(form.phoneNumber)) {
+      found.phoneNumber = INVALID_PHONE_MESSAGE;
     }
     const passwordError = validatePassword(form.password);
     if (passwordError) found.password = passwordError;
@@ -140,12 +145,13 @@ export default function AddCompanyModal({ isOpen, onClose, onSuccess }) {
         companyName: form.companyName.trim(),
         companyEmail: form.companyEmail.trim().toLowerCase(),
         companyAddress: form.companyAddress.trim(),
+        state: form.state.trim(),
         gstNumber: form.gstNumber.trim() ? form.gstNumber.trim().toUpperCase() : "",
         city: form.city.trim(),
         country: form.country.trim(),
         fullName: form.fullName.trim(),
         email: form.email.trim().toLowerCase(),
-        phoneNumber: form.phoneNumber.trim(),
+        phoneNumber: normalizePhone(form.phoneNumber),
         password: form.password,
         planId: form.planId,
         payment: showPayment ? form.payment : "MANUAL",
@@ -212,6 +218,7 @@ export default function AddCompanyModal({ isOpen, onClose, onSuccess }) {
       <Modal
         isOpen={isOpen}
         onClose={onClose}
+        className="sa-modal-theme"
         size="md"
         title="Company created"
         footer={
@@ -291,6 +298,7 @@ export default function AddCompanyModal({ isOpen, onClose, onSuccess }) {
       <Modal
         isOpen={isOpen}
         onClose={onClose}
+        className="sa-modal-theme"
         size="lg"
         title="Add company"
         description="Create a company, its first administrator and its subscription in one go."
@@ -370,7 +378,7 @@ export default function AddCompanyModal({ isOpen, onClose, onSuccess }) {
                       checked={form.payment === option.value}
                       onChange={() => setField("payment", option.value)}
                       disabled={saving}
-                      className="mt-0.5 h-4 w-4 border-slate-300 text-blue-800 focus:ring-2 focus:ring-blue-200"
+                      className="mt-0.5 h-4 w-4 border-line-strong text-primary-700 focus:ring-2 focus:ring-primary-200"
                     />
                     <span>
                       <span className="block text-sm font-medium text-slate-800">
@@ -417,13 +425,12 @@ export default function AddCompanyModal({ isOpen, onClose, onSuccess }) {
               <div>
                 <SAInput
                   id="add-companyEmail"
-                  label="Company email"
+                  label="Company email (optional)"
                   type="email"
                   value={form.companyEmail}
                   onChange={(e) => setField("companyEmail", e.target.value)}
                   placeholder="contact@acme.com"
                   disabled={saving}
-                  required
                   aria-invalid={errors.companyEmail ? true : undefined}
                 />
                 <FieldMessage id="add-companyEmail-error" message={errors.companyEmail} />
@@ -454,16 +461,29 @@ export default function AddCompanyModal({ isOpen, onClose, onSuccess }) {
               <FieldMessage id="add-companyAddress-error" message={errors.companyAddress} />
             </div>
 
+            <div className="mt-3">
+              <SAInput
+                id="add-state"
+                label="State"
+                value={form.state}
+                onChange={(e) => setField("state", e.target.value)}
+                placeholder="Karnataka"
+                disabled={saving}
+                required
+                aria-invalid={errors.state ? true : undefined}
+              />
+              <FieldMessage id="add-state-error" message={errors.state} />
+            </div>
+
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <SAInput
                   id="add-city"
-                  label="City"
+                  label="City (optional)"
                   value={form.city}
                   onChange={(e) => setField("city", e.target.value)}
                   placeholder="Bengaluru"
                   disabled={saving}
-                  required
                   aria-invalid={errors.city ? true : undefined}
                 />
                 <FieldMessage id="add-city-error" message={errors.city} />
@@ -471,12 +491,11 @@ export default function AddCompanyModal({ isOpen, onClose, onSuccess }) {
               <div>
                 <SAInput
                   id="add-country"
-                  label="Country"
+                  label="Country (optional)"
                   value={form.country}
                   onChange={(e) => setField("country", e.target.value)}
                   placeholder="India"
                   disabled={saving}
-                  required
                   aria-invalid={errors.country ? true : undefined}
                 />
                 <FieldMessage id="add-country-error" message={errors.country} />
@@ -507,13 +526,12 @@ export default function AddCompanyModal({ isOpen, onClose, onSuccess }) {
               <div>
                 <SAInput
                   id="add-email"
-                  label="Admin login email"
+                  label="Admin personal mail (optional)"
                   type="email"
                   value={form.email}
                   onChange={(e) => setField("email", e.target.value)}
                   placeholder="admin@acme.com"
                   disabled={saving}
-                  required
                   aria-invalid={errors.email ? true : undefined}
                 />
                 <FieldMessage id="add-email-error" message={errors.email} />
@@ -525,12 +543,15 @@ export default function AddCompanyModal({ isOpen, onClose, onSuccess }) {
                   type="tel"
                   value={form.phoneNumber}
                   onChange={(e) => setField("phoneNumber", e.target.value)}
-                  placeholder="+919876543210"
+                  placeholder="9876543210"
                   disabled={saving}
                   required
                   aria-invalid={errors.phoneNumber ? true : undefined}
                 />
                 <FieldMessage id="add-phoneNumber-error" message={errors.phoneNumber} />
+                <p className="mt-1 text-xs text-slate-400">
+                  10 digits. Used for login. Must be unique across all companies.
+                </p>
               </div>
             </div>
 

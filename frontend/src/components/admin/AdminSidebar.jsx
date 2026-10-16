@@ -17,28 +17,28 @@ function CompanyMark({ className }) {
   );
 }
 
-export default function AdminSidebar({ companyName, collapsed, onToggle }) {
+export default function AdminSidebar({ companyName, collapsed, onToggle, navGroups = ADMIN_NAV_GROUPS }) {
   return (
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 z-30 flex flex-col border-r border-nav-border bg-nav transition-[width] duration-200",
+        "fixed inset-y-3 left-0 z-30 flex flex-col rounded-r-card border border-primary-100 bg-white shadow-card transition-[width] duration-200",
         collapsed ? "w-20" : "w-64"
       )}
     >
       {/* Brand */}
       <div
         className={cn(
-          "flex h-16 shrink-0 items-center border-b border-nav-border",
+          "flex h-16 shrink-0 items-center border-b border-line",
           collapsed ? "justify-center px-3" : "gap-2.5 px-5"
         )}
       >
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-600 text-white">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-control bg-[#111A3A] text-white shadow-sm">
           <CompanyMark className="h-5 w-5" />
         </span>
         {!collapsed && (
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-white">MarkGo</p>
-            <p className="truncate text-xs text-nav-muted" title={companyName}>
+            <p className="truncate text-sm font-bold text-ink">MarkGo</p>
+            <p className="truncate text-xs text-muted" title={companyName}>
               {companyName || "Company"}
             </p>
           </div>
@@ -47,10 +47,10 @@ export default function AdminSidebar({ companyName, collapsed, onToggle }) {
 
       {/* Navigation */}
       <nav className="scrollbar-slim flex-1 overflow-y-auto px-3 py-4">
-        {ADMIN_NAV_GROUPS.map((group) => (
+        {navGroups.map((group) => (
           <div key={group.label} className="mb-5 last:mb-0">
             {!collapsed && (
-              <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-nav-muted">
+              <p className="mb-1.5 px-3 text-[11px] font-bold uppercase tracking-wider text-muted">
                 {group.label}
               </p>
             )}
@@ -64,11 +64,11 @@ export default function AdminSidebar({ companyName, collapsed, onToggle }) {
                       title={collapsed ? item.label : undefined}
                       className={({ isActive }) =>
                         cn(
-                          "group flex items-center rounded-lg text-sm font-medium transition-colors",
-                          collapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2.5",
+                          "group relative flex min-h-11 items-center rounded-control text-sm font-semibold transition-colors",
+                          collapsed ? "justify-center px-2" : "gap-3 px-3",
                           isActive
-                            ? "bg-nav-active text-white shadow-sm"
-                            : "text-nav-text hover:bg-nav-hover hover:text-white"
+                            ? "bg-primary-100 text-primary-800 before:absolute before:bottom-2 before:left-0 before:top-2 before:w-1 before:rounded-r-full before:bg-primary-600"
+                            : "text-body hover:bg-primary-50 hover:text-ink"
                         )
                       }
                     >
@@ -77,7 +77,7 @@ export default function AdminSidebar({ companyName, collapsed, onToggle }) {
                           <Icon
                             className={cn(
                               "h-4.5 w-4.5 shrink-0",
-                              isActive ? "text-white" : "text-nav-muted group-hover:text-nav-text"
+                              isActive ? "text-primary-700" : "text-muted group-hover:text-ink"
                             )}
                             aria-hidden="true"
                           />
@@ -94,13 +94,13 @@ export default function AdminSidebar({ companyName, collapsed, onToggle }) {
       </nav>
 
       {/* Collapse toggle */}
-      <div className="shrink-0 border-t border-nav-border p-3">
+      <div className="shrink-0 border-t border-line p-3">
         <button
           type="button"
           onClick={onToggle}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           className={cn(
-            "flex w-full items-center rounded-lg py-2 text-sm text-nav-muted transition-colors hover:bg-nav-hover hover:text-white",
+            "flex min-h-10 w-full items-center rounded-control py-2 text-sm text-muted transition-colors hover:bg-primary-50 hover:text-ink",
             collapsed ? "justify-center" : "gap-3 px-3"
           )}
         >

@@ -14,11 +14,11 @@ export default function SuperAdminSetting() {
   const [activeSection, setActiveSection] = useState("Profile");
 
   return (
-    <SACard className="overflow-hidden">
+    <SACard className="overflow-hidden rounded-card border-primary-100/70 bg-white shadow-card">
       <div className="flex flex-col md:flex-row md:min-h-[550px]">
         {/* Settings sub-navigation */}
-        <aside className="border-b border-slate-200 bg-slate-50 p-4 md:w-56 md:border-b-0 md:border-r">
-          <h2 className="mb-3 px-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+        <aside className="border-b border-primary-100 bg-primary-50/40 p-4 md:w-56 md:border-b-0 md:border-r">
+          <h2 className="mb-3 px-3 text-[11px] font-bold uppercase tracking-wider text-muted">
             Superadmin console
           </h2>
           <nav className="space-y-1">
@@ -30,10 +30,10 @@ export default function SuperAdminSetting() {
                   type="button"
                   onClick={() => setActiveSection(tab)}
                   aria-current={isActive ? "page" : undefined}
-                  className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                  className={`min-h-11 w-full rounded-control px-3 text-left text-sm transition-colors ${
                     isActive
-                      ? "bg-blue-50 font-semibold text-blue-800"
-                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                      ? "bg-primary-100 font-semibold text-primary-700"
+                      : "text-body hover:bg-primary-50 hover:text-ink"
                   }`}
                 >
                   {tab}
@@ -49,26 +49,26 @@ export default function SuperAdminSetting() {
           {activeSection === "Profile" && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-semibold text-slate-900">Super Administrator Profile</h3>
-                <p className="mt-0.5 text-sm text-slate-500">
+                <h3 className="text-lg font-semibold text-ink">Super Administrator Profile</h3>
+                <p className="mt-0.5 text-sm text-muted">
                   Global root account parameters and security identity.
                 </p>
               </div>
 
-              <dl className="grid grid-cols-1 gap-x-8 gap-y-4 border-t border-slate-200 pt-5 text-sm md:grid-cols-2">
+              <dl className="grid grid-cols-1 gap-x-8 gap-y-4 border-t border-primary-100 pt-5 text-sm md:grid-cols-2">
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2">
-                    <dt className="font-medium text-slate-500">Root email</dt>
-                    <dd className="truncate font-semibold text-slate-900">{orDash(user?.email)}</dd>
+                  <div className="flex items-center justify-between gap-3 border-b border-primary-100/70 pb-2">
+                    <dt className="font-medium text-muted">Root email</dt>
+                    <dd className="truncate font-semibold text-ink">{orDash(user?.email)}</dd>
                   </div>
-                  <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2">
-                    <dt className="font-medium text-slate-500">Account ID</dt>
-                    <dd className="truncate rounded-lg bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-700">
+                  <div className="flex items-center justify-between gap-3 border-b border-primary-100/70 pb-2">
+                    <dt className="font-medium text-muted">Account ID</dt>
+                    <dd className="truncate rounded-control bg-primary-50 px-2 py-0.5 font-mono text-xs text-body">
                       {orDash(user?.id || user?.userId)}
                     </dd>
                   </div>
-                  <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2">
-                    <dt className="font-medium text-slate-500">Authorization scope</dt>
+                  <div className="flex items-center justify-between gap-3 border-b border-primary-100/70 pb-2">
+                    <dt className="font-medium text-muted">Authorization scope</dt>
                     <dd>
                       <StatusPill tone="primary">{orDash(user?.role || "SUPERADMIN")}</StatusPill>
                     </dd>
@@ -76,20 +76,20 @@ export default function SuperAdminSetting() {
                 </div>
 
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2">
-                    <dt className="font-medium text-slate-500">Tenant scope</dt>
+                  <div className="flex items-center justify-between gap-3 border-b border-primary-100/70 pb-2">
+                    <dt className="font-medium text-muted">Tenant scope</dt>
                     <dd className="font-medium text-emerald-600">Global (all companies)</dd>
                   </div>
-                  <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2">
-                    <dt className="font-medium text-slate-500">Account status</dt>
+                  <div className="flex items-center justify-between gap-3 border-b border-primary-100/70 pb-2">
+                    <dt className="font-medium text-muted">Account status</dt>
                     <dd className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
                       <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
                       Active root session
                     </dd>
                   </div>
-                  <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2">
-                    <dt className="font-medium text-slate-500">Created date</dt>
-                    <dd className="text-slate-700">
+                  <div className="flex items-center justify-between gap-3 border-b border-primary-100/70 pb-2">
+                    <dt className="font-medium text-muted">Created date</dt>
+                    <dd className="text-body">
                       {user?.createdAt ? formatDateLabel(user.createdAt) : "System init"}
                     </dd>
                   </div>
@@ -102,13 +102,13 @@ export default function SuperAdminSetting() {
           {activeSection === "Security" && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-semibold text-slate-900">Platform Security Policies</h3>
-                <p className="mt-0.5 text-sm text-slate-500">
+                <h3 className="text-lg font-semibold text-ink">Platform Security Policies</h3>
+                <p className="mt-0.5 text-sm text-muted">
                   Enforced system-wide safeguards across all tenant boundaries.
                 </p>
               </div>
 
-              <div className="space-y-4 border-t border-slate-200 pt-5">
+              <div className="space-y-4 border-t border-primary-100 pt-5">
                 {[
                   {
                     title: "JWT rotation & refresh rate",
@@ -128,11 +128,11 @@ export default function SuperAdminSetting() {
                 ].map((policy) => (
                   <div
                     key={policy.title}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4"
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-tile border border-primary-100/70 bg-primary-50/40 p-4"
                   >
                     <div className="min-w-0">
-                      <h4 className="font-semibold text-slate-900">{policy.title}</h4>
-                      <p className="mt-0.5 text-xs text-slate-500">{policy.detail}</p>
+                      <h4 className="font-semibold text-ink">{policy.title}</h4>
+                      <p className="mt-0.5 text-xs text-muted">{policy.detail}</p>
                     </div>
                     <StatusPill>{policy.badge}</StatusPill>
                   </div>
@@ -145,13 +145,13 @@ export default function SuperAdminSetting() {
           {activeSection === "System" && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-semibold text-slate-900">Environment Architecture</h3>
-                <p className="mt-0.5 text-sm text-slate-500">
+                <h3 className="text-lg font-semibold text-ink">Environment Architecture</h3>
+                <p className="mt-0.5 text-sm text-muted">
                   Runtime configuration and infrastructure bindings.
                 </p>
               </div>
 
-              <dl className="space-y-3 border-t border-slate-200 pt-5 text-sm">
+              <dl className="space-y-3 border-t border-primary-100 pt-5 text-sm">
                 {[
                   ["Database engine", "MySQL 8.0 via Prisma ORM"],
                   ["Tenant isolation level", "Strict CompanyId multi-tenancy"],
@@ -159,10 +159,10 @@ export default function SuperAdminSetting() {
                 ].map(([label, value]) => (
                   <div
                     key={label}
-                    className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2"
+                    className="flex items-center justify-between gap-3 border-b border-primary-100/70 pb-2"
                   >
-                    <dt className="text-slate-500">{label}</dt>
-                    <dd className="truncate font-mono text-xs text-slate-700">{value}</dd>
+                    <dt className="text-muted">{label}</dt>
+                    <dd className="truncate font-mono text-xs text-body">{value}</dd>
                   </div>
                 ))}
               </dl>

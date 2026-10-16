@@ -348,7 +348,7 @@ export default function CompanyAdminBillList({ onCreateNew, onViewDetail, onEdit
                   setError("");
                   setSearchParams({}, { replace: true });
                 }}
-                className="h-9 rounded-lg px-3 text-sm font-medium text-muted transition-colors hover:bg-slate-100 hover:text-ink"
+                className="h-9 rounded-full px-3 text-sm font-medium text-muted transition-colors hover:bg-primary-50 hover:text-ink"
               >
                 Reset
               </button>

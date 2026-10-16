@@ -5,9 +5,9 @@ export const registerCompany = async (registrationData) => {
   return response.data;
 };
 
-export const loginCompanyAdmin = async ({ email, password }) => {
+export const loginCompanyAdmin = async ({ phoneNumber, password }) => {
   const response = await axiosInstance.post("/api/admin/login", {
-    email,
+    phoneNumber,
     password,
   });
   return response.data;

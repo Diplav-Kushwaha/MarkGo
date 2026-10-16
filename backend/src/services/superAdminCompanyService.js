@@ -11,6 +11,8 @@ import { logAuthEvent } from "../utils/auditLogger.js";
  * this flag arrives in a later step, behind ENFORCE_SUBSCRIPTION.
  */
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 const SETTABLE_STATUSES = ["ACTIVE", "SUSPENDED"];
 
 function httpError(message, status) {
@@ -150,18 +152,21 @@ export async function assignPlanToCompany(
       : null;
 
     // Cancel every open subscription and close its pending payments.
-    const open = await tx.subscription.findMany({
-      where: { companyId, status: { in: ["ACTIVE", "PENDING"] } },
-      select: { id: true },
-    });
-    for (const subscription of open) {
-      await tx.subscriptionPayment.updateMany({
-        where: { subscriptionId: subscription.id, status: "PENDING" },
-        data: { status: "FAILED" },
-      });
-      await tx.subscription.update({
-        where: { id: subscription.id },
+    const openIds = (
+      await tx.subscription.findMany({
+        where: { companyId, status: { in: ["ACTIVE", "PENDING"] } },
+        select: { id: true },
+      })
+    ).map((row) => row.id);
+
+    if (openIds.length > 0) {
+      await tx.subscription.updateMany({
+        where: { id: { in: openIds } },
         data: { status: "CANCELLED" },
+      });
+      await tx.subscriptionPayment.updateMany({
+        where: { status: "PENDING", subscriptionId: { in: openIds } },
+        data: { status: "FAILED" },
       });
     }
 
@@ -235,7 +240,7 @@ export async function assignPlanToCompany(
  * isCleanablePendingCompany, but reporting which one failed.
  */
 async function pendingBlockReason(companyId) {
-  const [paidPayments, activeSubscriptions, customers, vendors, invoices, bills, staff, accountants] =
+  const [paidPayments, activeSubscriptions, customers, vendors, invoices, bills] =
     await Promise.all([
       prisma.subscriptionPayment.count({ where: { companyId, status: "PAID" } }),
       prisma.subscription.count({ where: { companyId, status: "ACTIVE" } }),
@@ -243,8 +248,6 @@ async function pendingBlockReason(companyId) {
       prisma.vendor.count({ where: { companyId } }),
       prisma.invoice.count({ where: { companyId } }),
       prisma.bill.count({ where: { companyId } }),
-      prisma.staff.count({ where: { companyId } }),
-      prisma.accountant.count({ where: { companyId } }),
     ]);
 
   if (paidPayments > 0) return "it has a paid subscription payment";
@@ -253,8 +256,6 @@ async function pendingBlockReason(companyId) {
   if (vendors > 0) return `it has ${vendors} vendor record(s)`;
   if (invoices > 0) return `it has ${invoices} invoice(s)`;
   if (bills > 0) return `it has ${bills} bill(s)`;
-  if (staff > 0) return `it has ${staff} staff member(s)`;
-  if (accountants > 0) return `it has ${accountants} accountant(s)`;
   return null;
 }
 
@@ -263,7 +264,7 @@ async function pendingBlockReason(companyId) {
  *
  * Removes an abandoned pending registration. One company.delete does the whole
  * job: every child of Company is onDelete Cascade, so SubscriptionPayment,
- * Subscription, User, Customer, Vendor, Staff, Accountant, Item, Invoice, Bill,
+ * Subscription, User, Customer, Vendor, Item, Invoice, Bill,
  * Payment and CompanySettings all go with it.
  */
 export async function deletePendingCompany(companyId, { ip, userId } = {}) {

@@ -1,5 +1,6 @@
 import prisma from "../prisma.js";
 import { settingsDefaults } from "../validators/settingsValidators.js";
+import { normalizePhone, invalidPhoneError } from "../utils/phone.js";
 
 /**
  * Reads the company's billing settings, creating the row on first access so
@@ -14,8 +15,6 @@ export async function getSettings({ companyId }) {
     return existing;
   }
 
-  // create() can race if two requests hit a brand new company at once; the
-  // unique companyId constraint means the loser simply re-reads the row.
   try {
     return await prisma.companySettings.create({
       data: { companyId, ...settingsDefaults },
@@ -34,6 +33,140 @@ export async function updateSettings({ companyId, payload }) {
   return prisma.companySettings.update({
     where: { companyId },
     data: payload,
+  });
+}
+
+/**
+ * Get company details (for Settings page)
+ */
+export async function getCompanyDetails({ companyId }) {
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      email: true,
+      address: true,
+      state: true,
+      city: true,
+      country: true,
+      gstNumber: true,
+      currency: true,
+      financialYearStart: true,
+      createdAt: true,
+    },
+  });
+
+  if (!company) {
+    const err = new Error("Company not found.");
+    err.status = 404;
+    throw err;
+  }
+
+  return company;
+}
+
+/**
+ * Update company details (for Settings page)
+ */
+export async function updateCompanyDetails({ companyId, payload }) {
+  const { email, gstNumber, ...rest } = payload;
+
+  // Check email uniqueness if provided
+  if (email) {
+    const existing = await prisma.company.findUnique({ where: { email: email.toLowerCase() } });
+    if (existing && existing.id !== companyId) {
+      const err = new Error("A company with this email already exists.");
+      err.status = 409;
+      throw err;
+    }
+  }
+
+  // Check GST uniqueness if provided
+  if (gstNumber) {
+    const existing = await prisma.company.findUnique({ where: { gstNumber } });
+    if (existing && existing.id !== companyId) {
+      const err = new Error("A company with this GST number already exists.");
+      err.status = 409;
+      throw err;
+    }
+  }
+
+  return prisma.company.update({
+    where: { id: companyId },
+    data: {
+      ...rest,
+      email: email?.toLowerCase() || null,
+      gstNumber: gstNumber || null,
+    },
+  });
+}
+
+/**
+ * Get admin profile (for Settings page)
+ */
+export async function getAdminProfile({ userId }) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      fullName: true,
+      phoneNumber: true,
+      role: true,
+      isEmailVerified: true,
+      createdAt: true,
+    },
+  });
+
+  if (!user) {
+    const err = new Error("Admin not found.");
+    err.status = 404;
+    throw err;
+  }
+
+  return user;
+}
+
+/**
+ * Update admin profile (for Settings page)
+ */
+export async function updateAdminProfile({ userId, payload }) {
+  const { phoneNumber, email, ...rest } = payload;
+
+  if (phoneNumber && !normalizePhone(phoneNumber)) {
+    throw invalidPhoneError();
+  }
+
+  // Check phone uniqueness globally if provided
+  if (phoneNumber) {
+    const normalizedPhone = normalizePhone(phoneNumber);
+    const existing = await prisma.user.findUnique({ where: { phoneNumber: normalizedPhone } });
+    if (existing && existing.id !== userId) {
+      const err = new Error("This phone number is already registered.");
+      err.status = 409;
+      throw err;
+    }
+  }
+
+  // Check email uniqueness if provided
+  if (email) {
+    const existing = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+    if (existing && existing.id !== userId) {
+      const err = new Error("This email is already registered.");
+      err.status = 409;
+      throw err;
+    }
+  }
+
+  return prisma.user.update({
+    where: { id: userId },
+    data: {
+      ...rest,
+      phoneNumber: phoneNumber ? normalizePhone(phoneNumber) : undefined,
+      email: email?.toLowerCase() || null,
+    },
   });
 }
 
@@ -69,6 +202,16 @@ export async function generateDocumentNumber(tx, companyId, kind) {
   }
 
   return `${fullPrefix}${String(next).padStart(4, "0")}`;
+}
+
+export function isDocumentNumberUniqueConflict(err, numberField) {
+  if (err?.code !== "P2002") return false;
+
+  const target = err.meta?.target;
+  const targetParts = (Array.isArray(target) ? target : typeof target === "string" ? [target] : [])
+    .flatMap((value) => String(value).split(/[^a-zA-Z0-9]+/));
+
+  return targetParts.includes(numberField);
 }
 
 /**

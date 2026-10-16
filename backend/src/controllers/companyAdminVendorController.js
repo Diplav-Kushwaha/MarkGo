@@ -49,8 +49,9 @@ export async function getVendorStats(req, res) {
 // GET /api/admin/vendors/export
 export async function exportVendors(req, res) {
   try {
-    const vendors = await vendorService.getVendorsForExport({ companyId: req.user.companyId });
-    return res.status(200).json({ success: true, data: vendors });
+    const { rows, truncated } = await vendorService.getVendorsForExport({ companyId: req.user.companyId });
+    res.set("X-Export-Truncated", String(truncated));
+    return res.status(200).json({ success: true, data: rows });
   } catch (err) {
     console.error("exportVendors error:", err);
     return res.status(err.status || 500).json({ success: false, message: err.message || "Internal server error." });

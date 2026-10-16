@@ -1,94 +1,200 @@
 @import "tailwindcss";
 
+:root {
+  color-scheme: light;
+
+  /* MarkGo visual system */
+  --ui-page-top: #eef0fb;
+  --ui-page-mid: #f5f2ff;
+  --ui-page-bottom: #ffffff;
+  --ui-surface: #ffffff;
+  --ui-surface-glass: rgb(255 255 255 / 0.72);
+  --ui-border: rgb(124 92 252 / 0.1);
+  --ui-border-control: rgb(18 23 47 / 0.12);
+  --ui-navy: #12172f;
+  --ui-secondary: #5b6178;
+  --ui-muted: #6b7187;
+  --ui-purple: #7c5cfc;
+  --ui-purple-hover: #6a49f0;
+  --ui-purple-soft: #ede7ff;
+  --ui-purple-softer: #f6f3ff;
+  --ui-button: #111a3a;
+  --ui-button-hover: #1b2550;
+  --ui-success: #16a34a;
+  --ui-success-soft: #e8f8ee;
+  --ui-warning: #d97706;
+  --ui-warning-soft: #fef3e2;
+  --ui-danger: #dc2626;
+  --ui-danger-soft: #fdecec;
+  --ui-info: #2563eb;
+  --ui-info-soft: #e8f0fe;
+  --ui-chart-purple: #7c5cfc;
+  --ui-chart-indigo: #4f46e5;
+  --ui-chart-pink: #f0a6ca;
+  --ui-chart-teal: #2dd4bf;
+  --ui-chart-amber: #f59e0b;
+  --ui-chart-grid: rgb(18 23 47 / 0.06);
+  --ui-shadow-card: 0 10px 30px rgb(76 61 160 / 0.1);
+  --ui-shadow-floating: 0 20px 60px rgb(76 61 160 / 0.14);
+  --ui-shadow-control: 0 1px 2px rgb(18 23 47 / 0.06);
+  --ui-radius-card: 20px;
+  --ui-radius-tile: 14px;
+  --ui-radius-control: 12px;
+  --ui-radius-frame: 28px;
+  --ui-space-unit: 8px;
+}
+
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
-    Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans: "Manrope", "Plus Jakarta Sans", Inter, ui-sans-serif, system-ui,
+    -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
-  /* Brand / primary — indigo */
-  --color-primary-50: #eef2ff;
-  --color-primary-100: #e0e7ff;
-  --color-primary-200: #c7d2fe;
-  --color-primary-300: #a5b4fc;
-  --color-primary-400: #818cf8;
-  --color-primary-500: #6366f1;
-  --color-primary-600: #4f46e5;
-  --color-primary-700: #4338ca;
-  --color-primary-800: #3730a3;
-  --color-primary-900: #312e81;
+  /* Existing color names stay available to current Tailwind classes. */
+  --color-primary-50: var(--ui-purple-softer);
+  --color-primary-100: var(--ui-purple-soft);
+  --color-primary-200: #d9ceff;
+  --color-primary-300: #bba9ff;
+  --color-primary-400: #9b82ff;
+  --color-primary-500: var(--ui-purple);
+  --color-primary-600: var(--ui-purple-hover);
+  --color-primary-700: #5838d6;
+  --color-primary-800: #472bb5;
+  --color-primary-900: #38218f;
 
-  /* Surfaces, borders and text */
-  --color-canvas: #f8fafc;
-  --color-surface: #ffffff;
-  --color-line: #e2e8f0;
-  --color-line-strong: #cbd5e1;
-  --color-ink: #0f172a;
-  --color-body: #475569;
-  --color-muted: #94a3b8;
+  --color-canvas: var(--ui-page-top);
+  --color-surface: var(--ui-surface);
+  --color-line: #e8e5f2;
+  --color-line-strong: #d4d0e2;
+  --color-ink: var(--ui-navy);
+  --color-body: var(--ui-secondary);
+  --color-muted: var(--ui-muted);
 
-  /* Sidebar (slate) */
-  --color-nav: #0f172a;
-  --color-nav-hover: #1e293b;
-  --color-nav-active: #4f46e5;
-  --color-nav-text: #cbd5e1;
-  --color-nav-muted: #64748b;
-  --color-nav-border: #1e293b;
+  --color-nav: var(--ui-navy);
+  --color-nav-hover: var(--ui-button-hover);
+  --color-nav-active: var(--ui-purple);
+  --color-nav-text: #ffffff;
+  --color-nav-muted: #d1cde2;
+  --color-nav-border: rgb(255 255 255 / 0.12);
 
-  /* Status tones */
-  --color-success: #16a34a;
-  --color-success-soft: #dcfce7;
-  --color-success-line: #bbf7d0;
-  --color-warning: #d97706;
-  --color-warning-soft: #fef3c7;
-  --color-warning-line: #fde68a;
-  --color-danger: #dc2626;
-  --color-danger-soft: #fee2e2;
-  --color-danger-line: #fecaca;
-  --color-info: #0369a1;
-  --color-info-soft: #e0f2fe;
-  --color-info-line: #bae6fd;
-  --color-muted-soft: #f1f5f9;
-  --color-muted-line: #e2e8f0;
+  --color-success: var(--ui-success);
+  --color-success-soft: var(--ui-success-soft);
+  --color-success-line: #b9ebca;
+  --color-warning: var(--ui-warning);
+  --color-warning-soft: var(--ui-warning-soft);
+  --color-warning-line: #f5d6a4;
+  --color-danger: var(--ui-danger);
+  --color-danger-soft: var(--ui-danger-soft);
+  --color-danger-line: #f6c7c7;
+  --color-info: var(--ui-info);
+  --color-info-soft: var(--ui-info-soft);
+  --color-info-line: #c7d9fc;
+  --color-muted-soft: #f1eff8;
+  --color-muted-line: #e1deeb;
 
-  /* Elevation */
-  --shadow-card: 0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.06);
-  --shadow-card-hover: 0 4px 12px -2px rgb(15 23 42 / 0.1);
-  --shadow-pop: 0 12px 32px -12px rgb(15 23 42 / 0.28);
+  --color-accent: var(--ui-purple);
+  --color-accent-hover: var(--ui-purple-hover);
+  --color-chart-purple: var(--ui-chart-purple);
+  --color-chart-indigo: var(--ui-chart-indigo);
+  --color-chart-pink: var(--ui-chart-pink);
+  --color-chart-teal: var(--ui-chart-teal);
+  --color-chart-amber: var(--ui-chart-amber);
 
-  /* 14px base type */
+  --radius-control: var(--ui-radius-control);
+  --radius-tile: var(--ui-radius-tile);
+  --radius-card: var(--ui-radius-card);
+  --radius-frame: var(--ui-radius-frame);
+  --shadow-card: var(--ui-shadow-card);
+  --shadow-card-hover: var(--ui-shadow-floating);
+  --shadow-pop: var(--ui-shadow-floating);
+
   --text-base: 0.875rem;
   --text-base--line-height: 1.5rem;
 }
 
 @layer base {
   html {
+    min-width: 320px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+    scrollbar-color: #c8c0e8 transparent;
   }
 
   body {
-    background-color: var(--color-canvas);
-    color: var(--color-body);
+    min-width: 320px;
+    min-height: 100vh;
+    background: linear-gradient(
+      180deg,
+      var(--ui-page-top) 0%,
+      var(--ui-page-mid) 48%,
+      var(--ui-page-bottom) 100%
+    );
+    color: var(--ui-secondary);
     font-family: var(--font-sans);
     font-size: 0.875rem;
     line-height: 1.5rem;
   }
 
-  /* Consistent, visible focus ring for keyboard users only */
-  :focus-visible {
-    outline: 2px solid var(--color-primary-600);
-    outline-offset: 2px;
+  ::selection {
+    background: var(--ui-purple-soft);
+    color: var(--ui-navy);
   }
 
-  /* Numeric columns line up better with tabular figures */
+  :focus-visible {
+    outline: 2px solid var(--ui-purple);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgb(124 92 252 / 0.18);
+  }
+
+  a {
+    color: var(--ui-purple-hover);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.18em;
+  }
+
+  a:hover {
+    color: #5838d6;
+  }
+
   table {
     font-variant-numeric: tabular-nums;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #c8c0e8 transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: #c8c0e8;
+    border-radius: 9999px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
 @layer utilities {
-  /* Number inputs: drop the native steppers so wide values are not clipped by
-     the arrows. Applied per-input, not globally, so stepper-enabled number
-     inputs elsewhere keep working. */
   .no-spinner {
     -moz-appearance: textfield;
     appearance: textfield;
@@ -100,7 +206,6 @@
     margin: 0;
   }
 
-  /* Thin scrollbar for scrollable table bodies and nav */
   .scrollbar-slim::-webkit-scrollbar {
     width: 8px;
     height: 8px;

@@ -1,15 +1,47 @@
 import prisma from "../prisma.js";
+import { normalizePhone, invalidPhoneError } from "../utils/phone.js";
+import { Decimal } from "../utils/money.js";
 
-// Email uniqueness is scoped per company (see @@unique([companyId, email])
-// in schema.prisma) — never check email uniqueness globally for customers.
+const EXPORT_MAX_ROWS = 10_000;
+
 async function checkDuplicateEmail(companyId, email, excludeCustomerId = null) {
+  if (!email) return null;
   const existing = await prisma.customer.findUnique({
-    where: { companyId_email: { companyId, email } },
+    where: { companyId_email: { companyId, email: email.toLowerCase() } },
   });
   if (existing && existing.id !== excludeCustomerId && !existing.isDeleted) {
     return existing;
   }
   return null;
+}
+
+async function checkDuplicatePhone(companyId, phoneNumber, excludeCustomerId = null) {
+  const normalizedPhone = normalizePhone(phoneNumber);
+  const existing = await prisma.customer.findUnique({
+    where: { companyId_phoneNumber: { companyId, phoneNumber: normalizedPhone } },
+  });
+  if (existing && existing.id !== excludeCustomerId && !existing.isDeleted) {
+    return existing;
+  }
+  return null;
+}
+
+/**
+ * Builds an address update payload from a submitted address object.
+ * Blank optional fields become null; line1 is only included when a
+ * non-blank value is provided because the column is NOT NULL — a blank
+ * line1 keeps the stored value instead of wiping it. Keys the client
+ * did not send are left out entirely so they stay unchanged.
+ */
+function buildAddressUpdateData(address) {
+  const data = {};
+  if (address.line1) data.line1 = address.line1;
+  if (address.line2 !== undefined) data.line2 = address.line2 || null;
+  if (address.city !== undefined) data.city = address.city || null;
+  if (address.state !== undefined) data.state = address.state || null;
+  if (address.country !== undefined) data.country = address.country || null;
+  if (address.postalCode !== undefined) data.postalCode = address.postalCode || null;
+  return data;
 }
 
 export async function createCustomer({ companyId, userId, payload }) {
@@ -29,26 +61,44 @@ export async function createCustomer({ companyId, userId, payload }) {
     notes,
     billingAddress,
     shippingAddress,
-    sameAsBilling,
+    sameAsBilling = true,
   } = payload;
 
-  const duplicate = await checkDuplicateEmail(companyId, email);
-  if (duplicate) {
-    const err = new Error("A customer with this email already exists for your company.");
-    err.status = 409;
-    throw err;
+  if (phoneNumber && !normalizePhone(phoneNumber)) {
+    throw invalidPhoneError();
+  }
+  if (alternatePhone && !normalizePhone(alternatePhone)) {
+    throw invalidPhoneError();
   }
 
-  const addressesToCreate = [{ ...billingAddress, type: "BILLING" }];
-  if (sameAsBilling) {
+  if (email) {
+    const duplicate = await checkDuplicateEmail(companyId, email);
+    if (duplicate) {
+      const err = new Error("A customer with this email already exists for your company.");
+      err.status = 409;
+      throw err;
+    }
+  }
+
+  if (phoneNumber) {
+    const duplicate = await checkDuplicatePhone(companyId, phoneNumber);
+    if (duplicate) {
+      const err = new Error("A customer with this phone number already exists for your company.");
+      err.status = 409;
+      throw err;
+    }
+  }
+
+  const addressesToCreate = [];
+  if (billingAddress && billingAddress.line1) {
+    addressesToCreate.push({ ...billingAddress, type: "BILLING" });
+  }
+  if (sameAsBilling && billingAddress && billingAddress.line1) {
     addressesToCreate.push({ ...billingAddress, type: "SHIPPING" });
-  } else if (shippingAddress) {
+  } else if (shippingAddress && shippingAddress.line1) {
     addressesToCreate.push({ ...shippingAddress, type: "SHIPPING" });
   }
 
-  // Customer + its address(es) are created together — if either insert
-  // fails, the whole thing rolls back, so you never get a customer with
-  // no address.
   return prisma.$transaction(async (tx) => {
     return tx.customer.create({
       data: {
@@ -56,9 +106,9 @@ export async function createCustomer({ companyId, userId, payload }) {
         customerType,
         name: name.trim(),
         companyName: companyName ? companyName.trim() : null,
-        email: email.trim().toLowerCase(),
-        phoneNumber: phoneNumber || null,
-        alternatePhone: alternatePhone || null,
+        email: email?.trim().toLowerCase() || null,
+        phoneNumber: phoneNumber ? normalizePhone(phoneNumber) : null,
+        alternatePhone: alternatePhone ? normalizePhone(alternatePhone) : null,
         taxNumber: taxNumber ? taxNumber.trim().toUpperCase() : null,
         panNumber: panNumber ? panNumber.trim().toUpperCase() : null,
         currency: currency || "INR",
@@ -164,8 +214,6 @@ export async function getCustomerStats({ companyId }) {
   };
 }
 
-// companyId scoping here is what stops one company's admin from ever
-// reading/editing another company's customer by guessing an id.
 export async function getCustomerById({ companyId, customerId }) {
   const customer = await prisma.customer.findFirst({
     where: { id: customerId, companyId },
@@ -180,7 +228,14 @@ export async function getCustomerById({ companyId, customerId }) {
 }
 
 export async function updateCustomer({ companyId, customerId, payload }) {
-  await getCustomerById({ companyId, customerId }); // scoping + existence check
+  await getCustomerById({ companyId, customerId });
+
+  if (payload.phoneNumber && !normalizePhone(payload.phoneNumber)) {
+    throw invalidPhoneError();
+  }
+  if (payload.alternatePhone && !normalizePhone(payload.alternatePhone)) {
+    throw invalidPhoneError();
+  }
 
   if (payload.email) {
     const duplicate = await checkDuplicateEmail(companyId, payload.email, customerId);
@@ -191,39 +246,68 @@ export async function updateCustomer({ companyId, customerId, payload }) {
     }
   }
 
+  if (payload.phoneNumber) {
+    const duplicate = await checkDuplicatePhone(companyId, payload.phoneNumber, customerId);
+    if (duplicate) {
+      const err = new Error("Another customer with this phone number already exists for your company.");
+      err.status = 409;
+      throw err;
+    }
+  }
+
   const { billingAddress, shippingAddress, sameAsBilling, ...customerFields } = payload;
 
+  // Normalize phone numbers and blank optional strings. "" becomes
+  // null so a cleared field is stored as NULL, never as "".
+  if (customerFields.phoneNumber) {
+    customerFields.phoneNumber = normalizePhone(customerFields.phoneNumber);
+  }
+  if (customerFields.alternatePhone) {
+    customerFields.alternatePhone = normalizePhone(customerFields.alternatePhone);
+  }
+  for (const field of ["companyName", "email", "taxNumber", "panNumber", "notes"]) {
+    if (customerFields[field] === "") {
+      customerFields[field] = null;
+    }
+  }
+
   return prisma.$transaction(async (tx) => {
-    // If billing address was provided, update existing or create
+    if (customerFields.openingBalance !== undefined) {
+      const current = await tx.customer.findFirst({
+        where: { id: customerId, companyId, isDeleted: false },
+        select: { openingBalance: true },
+      });
+      if (!current) {
+        const err = new Error("Customer not found");
+        err.status = 404;
+        throw err;
+      }
+
+      const nextOpeningBalance = new Decimal(customerFields.openingBalance);
+      const openingBalanceDelta = nextOpeningBalance.minus(current.openingBalance);
+      if (openingBalanceDelta.isZero()) {
+        delete customerFields.openingBalance;
+      } else {
+        customerFields.openingBalance = nextOpeningBalance;
+        customerFields.outstandingBalance = { increment: openingBalanceDelta };
+      }
+    }
+
     if (billingAddress) {
+      const addressData = buildAddressUpdateData(billingAddress);
+
       const existingBilling = await tx.address.findFirst({
         where: { customerId, type: "BILLING" },
       });
 
-      if (existingBilling) {
+      if (existingBilling && Object.keys(addressData).length) {
         await tx.address.update({
           where: { id: existingBilling.id },
-          data: {
-            line1: billingAddress.line1,
-            line2: billingAddress.line2 ?? null,
-            city: billingAddress.city ?? null,
-            state: billingAddress.state ?? null,
-            country: billingAddress.country ?? null,
-            postalCode: billingAddress.postalCode ?? null,
-          },
+          data: addressData,
         });
-      } else {
+      } else if (!existingBilling && addressData.line1) {
         await tx.address.create({
-          data: {
-            customerId,
-            type: "BILLING",
-            line1: billingAddress.line1,
-            line2: billingAddress.line2 ?? null,
-            city: billingAddress.city ?? null,
-            state: billingAddress.state ?? null,
-            country: billingAddress.country ?? null,
-            postalCode: billingAddress.postalCode ?? null,
-          },
+          data: { customerId, type: "BILLING", ...addressData },
         });
       }
 
@@ -232,17 +316,10 @@ export async function updateCustomer({ companyId, customerId, payload }) {
           where: { customerId, type: "SHIPPING" },
         });
 
-        if (existingShipping) {
+        if (existingShipping && Object.keys(addressData).length) {
           await tx.address.update({
             where: { id: existingShipping.id },
-            data: {
-              line1: billingAddress.line1,
-              line2: billingAddress.line2 ?? null,
-              city: billingAddress.city ?? null,
-              state: billingAddress.state ?? null,
-              country: billingAddress.country ?? null,
-              postalCode: billingAddress.postalCode ?? null,
-            },
+            data: addressData,
           });
         }
       }
@@ -256,7 +333,6 @@ export async function updateCustomer({ companyId, customerId, payload }) {
   });
 }
 
-// Soft delete customer (blocks deletion if active dues/orders or sets soft deleted)
 export async function deleteCustomer({ companyId, customerId }) {
   await getCustomerById({ companyId, customerId });
 
@@ -279,7 +355,6 @@ export async function updateCustomerStatus({ companyId, customerId, status }) {
   });
 }
 
-// Bulk Actions: ACTIVATE, DEACTIVATE, DELETE
 export async function bulkActionCustomers({ companyId, customerIds, action }) {
   const where = {
     companyId,
@@ -315,16 +390,16 @@ export async function bulkActionCustomers({ companyId, customerIds, action }) {
   throw new Error("Invalid bulk action requested.");
 }
 
-// Export dataset for customers
 export async function getCustomersForExport({ companyId }) {
-  return prisma.customer.findMany({
+  const rows = await prisma.customer.findMany({
     where: { companyId, isDeleted: false },
     orderBy: { createdAt: "desc" },
+    take: EXPORT_MAX_ROWS + 1,
     include: { addresses: true },
   });
+  return { rows: rows.slice(0, EXPORT_MAX_ROWS), truncated: rows.length > EXPORT_MAX_ROWS };
 }
 
-// Mock/Dummy GSTIN Lookup (no external API key required)
 export async function lookupGstin(gstin) {
   const cleanGstin = gstin.trim().toUpperCase();
   const pan = cleanGstin.substring(2, 12);

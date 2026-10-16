@@ -4,10 +4,10 @@ import { Loader2 } from "lucide-react";
 
 const VARIANTS = {
   primary:
-    "bg-primary-600 text-white shadow-sm hover:bg-primary-700 active:bg-primary-800 focus-visible:outline-primary-700",
+    "bg-[#111A3A] text-white shadow-sm hover:bg-[#1B2550] active:bg-[#1B2550] focus-visible:outline-primary-700",
   secondary:
-    "bg-surface text-body border border-line shadow-sm hover:bg-slate-50 hover:text-ink hover:border-line-strong",
-  ghost: "text-body hover:bg-slate-100 hover:text-ink",
+    "bg-white text-ink border border-line shadow-sm hover:bg-primary-50 hover:text-ink hover:border-primary-200",
+  ghost: "text-body hover:bg-primary-50 hover:text-ink",
   danger:
     "bg-danger text-white shadow-sm hover:bg-red-700 active:bg-red-800 focus-visible:outline-red-700",
   "danger-soft":
@@ -19,11 +19,11 @@ const VARIANTS = {
 };
 
 const SIZES = {
-  sm: "h-8 px-3 text-xs gap-1.5",
-  md: "h-9 px-4 text-sm gap-2",
-  lg: "h-10 px-5 text-sm gap-2",
-  icon: "h-9 w-9 justify-center",
-  "icon-sm": "h-8 w-8 justify-center",
+  sm: "h-10 px-3 text-xs gap-1.5",
+  md: "h-11 px-4 text-sm gap-2",
+  lg: "h-12 px-5 text-sm gap-2",
+  icon: "h-10 w-10 justify-center",
+  "icon-sm": "h-10 w-10 justify-center",
 };
 
 const Button = forwardRef(function Button(
@@ -47,7 +47,7 @@ const Button = forwardRef(function Button(
       disabled={Component === "button" ? disabled || loading : undefined}
       aria-busy={loading || undefined}
       className={cn(
-        "inline-flex select-none items-center justify-center whitespace-nowrap rounded-lg font-medium transition-colors",
+        "inline-flex select-none items-center justify-center whitespace-nowrap rounded-control font-semibold transition-all duration-150",
         "disabled:pointer-events-none disabled:opacity-50",
         VARIANTS[variant] || VARIANTS.primary,
         SIZES[size] || SIZES.md,

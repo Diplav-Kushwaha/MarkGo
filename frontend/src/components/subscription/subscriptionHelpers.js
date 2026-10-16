@@ -72,7 +72,6 @@ export function isUnlimited(limit) {
 
 export const LIMIT_ROWS = [
   { key: "users", label: "Users" },
-  { key: "staff", label: "Staff" },
   { key: "customers", label: "Customers" },
   { key: "vendors", label: "Vendors" },
   { key: "invoices", label: "Invoices" },

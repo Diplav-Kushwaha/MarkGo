@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import {
   loginCompanyAdmin as apiLoginCompany,
   logoutCompanyAdmin as apiLogoutCompany,
@@ -19,16 +19,6 @@ import {
   logoutVendor as apiLogoutVendor,
   getVendorProfile,
 } from "../api/vendorAuthApi";
-import {
-  loginStaff as apiLoginStaff,
-  logoutStaff as apiLogoutStaff,
-  getStaffProfile,
-} from "../api/staffAuthApi";
-import {
-  loginAccountant as apiLoginAccountant,
-  logoutAccountant as apiLogoutAccountant,
-  getAccountantProfile,
-} from "../api/accountantAuthApi";
 import { fetchCsrfToken } from "../api/csrfApi";
 import { setAuthFailureHandler } from "../api/axiosInstance";
 
@@ -90,43 +80,21 @@ export const AuthProvider = ({ children }) => {
               setCompany(null);
               return;
             }
-          } catch {
-            // If not customer, attempt restoring Vendor session
-            try {
-              const vendorRes = await getVendorProfile();
-              if (vendorRes.success && vendorRes.data) {
-                setUser(vendorRes.data);
-                setRole("VENDOR");
-                setCompany(null);
-                return;
-              }
-            } catch {
-              // If not vendor, attempt restoring Staff session
-              try {
-                const staffRes = await getStaffProfile();
-                if (staffRes.success && staffRes.data) {
-                  setUser(staffRes.data);
-                  setRole("STAFF");
-                  setCompany(null);
-                  return;
-                }
-              } catch {
-                // If not staff, attempt restoring Accountant session
-                try {
-                  const accountantRes = await getAccountantProfile();
-                  if (accountantRes.success && accountantRes.data) {
-                    setUser(accountantRes.data);
-                    setRole("ACCOUNTANT");
-                    setCompany(null);
-                    return;
-                  }
-                } catch {
-                  // No active session found
-                  clearAuthState();
-                }
-              }
+        } catch {
+          // If not customer, attempt restoring Vendor session
+          try {
+            const vendorRes = await getVendorProfile();
+            if (vendorRes.success && vendorRes.data) {
+              setUser(vendorRes.data);
+              setRole("VENDOR");
+              setCompany(null);
+              return;
             }
+          } catch {
+            // No active session found for any role.
+            clearAuthState();
           }
+        }
         }
       } finally {
         setLoading(false);
@@ -180,29 +148,7 @@ export const AuthProvider = ({ children }) => {
     return res;
   };
 
-  // Staff Login
-  const loginStaffUser = async (credentials) => {
-    const res = await apiLoginStaff(credentials);
-    if (res.success && res.data?.staff) {
-      setUser(res.data.staff);
-      setCompany(null);
-      setRole("STAFF");
-    }
-    return res;
-  };
-
-  // Accountant Login
-  const loginAccountantUser = async (credentials) => {
-    const res = await apiLoginAccountant(credentials);
-    if (res.success && res.data?.accountant) {
-      setUser(res.data.accountant);
-      setCompany(null);
-      setRole("ACCOUNTANT");
-    }
-    return res;
-  };
-
-  // Logout (handles Superadmin, Company Admin, Customer, Vendor, Staff, and Accountant, clears state, and fetches a fresh CSRF token)
+  // Logout (handles Superadmin, Company Admin, Customer, and Vendor, clears state, and fetches a fresh CSRF token)
   const logout = async () => {
     try {
       if (role === "SUPERADMIN") {
@@ -211,10 +157,6 @@ export const AuthProvider = ({ children }) => {
         await apiLogoutCustomer();
       } else if (role === "VENDOR") {
         await apiLogoutVendor();
-      } else if (role === "STAFF") {
-        await apiLogoutStaff();
-      } else if (role === "ACCOUNTANT") {
-        await apiLogoutAccountant();
       } else {
         await apiLogoutCompany();
       }
@@ -241,8 +183,6 @@ export const AuthProvider = ({ children }) => {
         loginSuper,
         loginCust,
         loginVend,
-        loginStaffUser,
-        loginAccountantUser,
         logout,
         isAuthenticated: !!user,
       }}
@@ -252,6 +192,8 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
+// The hook is intentionally paired with this provider and its private context.
+// eslint-disable-next-line react-refresh/only-export-components -- Consumers need the hook that reads this provider's context.
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {

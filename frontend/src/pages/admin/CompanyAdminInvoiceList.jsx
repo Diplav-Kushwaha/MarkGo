@@ -119,7 +119,9 @@ export default function CompanyAdminInvoiceList({ onCreateNew, onViewDetail, onE
       render: (row) => (
         <div>
           <div className="text-body">{row.customer?.name || "—"}</div>
-          <div className="text-xs text-muted">{row.customer?.email}</div>
+          <div className="text-xs text-muted">
+            {row.customer?.email || row.customer?.phoneNumber || "—"}
+          </div>
         </div>
       ),
     },
@@ -264,7 +266,7 @@ export default function CompanyAdminInvoiceList({ onCreateNew, onViewDetail, onE
               <button
                 type="button"
                 onClick={() => setSearchParams({}, { replace: true })}
-                className="h-9 rounded-lg px-3 text-sm font-medium text-muted transition-colors hover:bg-slate-100 hover:text-ink"
+                className="h-9 rounded-full px-3 text-sm font-medium text-muted transition-colors hover:bg-primary-50 hover:text-ink"
               >
                 Reset
               </button>

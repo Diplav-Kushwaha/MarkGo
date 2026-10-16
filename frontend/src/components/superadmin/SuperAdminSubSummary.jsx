@@ -151,7 +151,7 @@ export default function SuperAdminSubSummary({ summary }) {
                   {maxCollected > 0 && (
                     <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
                       <div
-                        className="h-full rounded-full bg-blue-700"
+                        className="h-full rounded-full bg-chart-purple"
                         style={{
                           width: `${Math.min(
                             100,

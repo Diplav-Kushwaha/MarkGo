@@ -8,6 +8,19 @@ import * as subscriptionPaymentService from "../services/subscriptionPaymentServ
  * only the summary shape from getPaymentSummary.
  */
 
+/**
+ * What the browser is told about a failure. Errors we raise on purpose carry a
+ * status and a message meant for the user, so they pass through untouched. An
+ * unexpected one (a bad query, a dropped connection) has no status and its
+ * message is raw driver text, so in production the client gets a generic line —
+ * the full error has already been logged above.
+ */
+function clientMessage(err) {
+  if (err.status) return err.message;
+  if (process.env.NODE_ENV === "production") return "Something went wrong. Please try again.";
+  return err.message || "Internal server error.";
+}
+
 export async function getPaymentSummary(req, res) {
   try {
     const summary = await subscriptionPaymentService.getPaymentSummary(req.params.paymentId);
@@ -16,7 +29,7 @@ export async function getPaymentSummary(req, res) {
     console.error("getPaymentSummary error:", err);
     return res
       .status(err.status || 500)
-      .json({ success: false, message: err.message || "Internal server error." });
+      .json({ success: false, message: clientMessage(err) });
   }
 }
 
@@ -30,7 +43,7 @@ export async function confirmPayment(req, res) {
     console.error("confirmSubscriptionPayment error:", err);
     return res
       .status(err.status || 500)
-      .json({ success: false, message: err.message || "Internal server error." });
+      .json({ success: false, message: clientMessage(err) });
   }
 }
 
@@ -42,6 +55,6 @@ export async function failPayment(req, res) {
     console.error("failSubscriptionPayment error:", err);
     return res
       .status(err.status || 500)
-      .json({ success: false, message: err.message || "Internal server error." });
+      .json({ success: false, message: clientMessage(err) });
   }
 }

@@ -31,7 +31,7 @@ export default function UsageBar({ label, used, limit }) {
     ? "bg-red-500"
     : warn
       ? "bg-amber-500"
-      : "bg-blue-700";
+      : "bg-primary-600";
 
   return (
     <div className="py-1.5">
@@ -48,7 +48,7 @@ export default function UsageBar({ label, used, limit }) {
         </span>
       </div>
       <div
-        className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100"
+        className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-primary-100"
         role="progressbar"
         aria-label={`${label} usage`}
         aria-valuenow={count}

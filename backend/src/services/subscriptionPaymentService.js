@@ -21,6 +21,9 @@ export async function getPaymentSummary(paymentId) {
     include: {
       plan: { select: { name: true, billingCycle: true } },
       company: { select: { name: true } },
+      // Same query, one more relation: lets the page say up front that this link
+      // is stale instead of waiting for the user to press "Pay now".
+      subscription: { select: { status: true } },
     },
   });
 
@@ -37,6 +40,12 @@ export async function getPaymentSummary(paymentId) {
     planName: payment.plan?.name ?? null,
     billingCycle: payment.plan?.billingCycle ?? null,
     companyName: payment.company?.name ?? null,
+    // Mirrors the 409 confirmPayment raises, so the page can disable the buttons
+    // on a link whose subscription is gone. A FAILED payment whose subscription
+    // is still PENDING is NOT replaced: that one can be retried.
+    replaced:
+      payment.status !== "PAID" &&
+      (!payment.subscription || payment.subscription.status !== "PENDING"),
   };
 }
 
@@ -108,7 +117,11 @@ export async function confirmPayment(paymentId, { ip } = {}) {
   }
 
   if (!payment.subscription || payment.subscription.status !== "PENDING") {
-    const err = new Error("This subscription is not awaiting payment.");
+    // Almost always a stale link: "Buy plan" again cancels the earlier pending
+    // subscription (see closeSubscriptions), so this payment can never settle.
+    const err = new Error(
+      "This payment link has been replaced by a newer purchase or is no longer valid. Please start again from your Subscription page."
+    );
     err.status = 409;
     throw err;
   }
@@ -146,26 +159,39 @@ export async function confirmPayment(paymentId, { ip } = {}) {
       data: { status: "ACTIVE" },
     });
 
-    // The subscription being bought replaces whatever was active; remaining
-    // days on the old one are intentionally not carried over.
-    const superseded = await tx.subscription.updateMany({
-      where: {
-        companyId: payment.companyId,
-        status: { in: ["ACTIVE", "PENDING"] },
-        id: { not: subscription.id },
-      },
-      data: { status: "CANCELLED" },
-    });
+    // The subscription being bought replaces whatever was open; remaining days on
+    // the old ones are intentionally not carried over. Their ids are collected
+    // first so the payments below can be closed with a flat `in` filter: a Prisma
+    // filter object can never contain the field it filters on, and `not: null` is
+    // not needed here because SQL already excludes NULL from an `in` list.
+    const supersededIds = (
+      await tx.subscription.findMany({
+        where: {
+          companyId: payment.companyId,
+          status: { in: ["ACTIVE", "PENDING"] },
+          id: { not: subscription.id },
+        },
+        select: { id: true },
+      })
+    ).map((row) => row.id);
 
-    // Payments left dangling against those cancelled subscriptions are closed.
-    await tx.subscriptionPayment.updateMany({
-      where: {
-        companyId: payment.companyId,
-        subscriptionId: { not: null, subscriptionId: { not: subscription.id } },
-        status: "PENDING",
-      },
-      data: { status: CLOSED_PAYMENT_STATUS },
-    });
+    if (supersededIds.length > 0) {
+      await tx.subscription.updateMany({
+        where: { id: { in: supersededIds } },
+        data: { status: "CANCELLED" },
+      });
+
+      // Only the payments of the subscriptions cancelled just above, so the
+      // payment being confirmed here is never touched.
+      await tx.subscriptionPayment.updateMany({
+        where: {
+          companyId: payment.companyId,
+          status: "PENDING",
+          subscriptionId: { in: supersededIds },
+        },
+        data: { status: CLOSED_PAYMENT_STATUS },
+      });
+    }
 
     const company = await tx.company.findUnique({
       where: { id: payment.companyId },
@@ -176,7 +202,7 @@ export async function confirmPayment(paymentId, { ip } = {}) {
       alreadyPaid: false,
       paymentId,
       subscription,
-      supersededCount: superseded.count,
+      supersededCount: supersededIds.length,
       companyActivated: activated.count > 0,
       companyStatus: company?.status ?? null,
       endDate,
@@ -184,7 +210,7 @@ export async function confirmPayment(paymentId, { ip } = {}) {
   });
 
   if (result.alreadyPaid) {
-    logAuthEvent({ event: "SUBSCRIPTION_PAYMENT_CONFIRM", success: true, userId: result.subscriptionId, ip, reason: "already_paid" });
+    logAuthEvent({ event: "SUBSCRIPTION_PAYMENT_CONFIRM", success: true, ip, reason: `already_paid subscription:${result.subscriptionId}` });
     return {
       alreadyPaid: true,
       payment: { id: payment.id, status: "PAID" },
@@ -197,9 +223,8 @@ export async function confirmPayment(paymentId, { ip } = {}) {
   logAuthEvent({
     event: "SUBSCRIPTION_PAYMENT_CONFIRM",
     success: true,
-    userId: result.subscription.id,
     ip,
-    reason: result.companyActivated ? "company_activated" : "company_not_pending",
+    reason: `${result.companyActivated ? "company_activated" : "company_not_pending"} subscription:${result.subscription.id}`,
   });
 
   return {
@@ -244,7 +269,7 @@ export async function failPayment(paymentId, { ip } = {}) {
   }
 
   if (payment.status === "FAILED") {
-    logAuthEvent({ event: "SUBSCRIPTION_PAYMENT_FAIL", success: true, userId: payment.subscription?.id, ip, reason: "already_failed" });
+    logAuthEvent({ event: "SUBSCRIPTION_PAYMENT_FAIL", success: true, ip, reason: `already_failed subscription:${payment.subscription?.id ?? "none"}` });
     return {
       alreadyFailed: true,
       payment: { id: payment.id, status: "FAILED" },
@@ -278,9 +303,8 @@ export async function failPayment(paymentId, { ip } = {}) {
   logAuthEvent({
     event: "SUBSCRIPTION_PAYMENT_FAIL",
     success: true,
-    userId: payment.subscription?.id,
     ip,
-    reason: result.alreadyFailed ? "already_failed" : "payment_failed",
+    reason: `${result.alreadyFailed ? "already_failed" : "payment_failed"} subscription:${payment.subscription?.id ?? "none"}`,
   });
 
   return {

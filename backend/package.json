@@ -7,6 +7,7 @@
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
+    "seed:catalog": "node prisma/seeds/unitsAndCategories.js",
     "db:backup": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$u=((Get-Content .env | Select-String '^\\s*DATABASE_URL\\s*=').Line -split '=',2)[1].Trim().Trim([char]34,[char]39); $m=[regex]::Match($u,'^mysql://([^:]+):([^@]+)@([^:/]+):?(\\d*)/([^?]+)'); if(-not $m.Success){Write-Error 'Could not parse DATABASE_URL from .env';exit 1}; $env:MYSQL_PWD=[uri]::UnescapeDataString($m.Groups[2].Value); $f='backup_'+(Get-Date).ToString('yyyyMMdd_HHmm')+'.sql'; & 'C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin\\mysqldump.exe' -h $m.Groups[3].Value -P $(if($m.Groups[4].Value){$m.Groups[4].Value}else{'3306'}) -u $m.Groups[1].Value --single-transaction --routines --triggers --events --set-gtid-purged=OFF --default-character-set=utf8mb4 --result-file=$f $m.Groups[5].Value; $c=$LASTEXITCODE; Remove-Item Env:\\MYSQL_PWD -ErrorAction SilentlyContinue; if($c -ne 0){Write-Error 'mysqldump failed';exit $c}; Write-Host ('Backup written to '+(Join-Path (Get-Location) $f))\"",
     "postinstall": "prisma skills sync || exit 0"
   },

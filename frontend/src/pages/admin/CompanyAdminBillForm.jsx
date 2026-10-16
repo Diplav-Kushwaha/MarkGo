@@ -313,7 +313,7 @@ export default function CompanyAdminBillForm({ billId, onBack, onSuccess }) {
 
                 <div>
                   <span className="mb-1.5 block text-sm font-medium text-ink">Entry mode</span>
-                  <div className="inline-flex rounded-lg border border-line bg-slate-50 p-1">
+                  <div className="inline-flex rounded-full border border-primary-100 bg-primary-50/70 p-1">
                     {[
                       { value: "AMOUNT", label: "Single amount" },
                       { value: "ITEMS", label: "Line items" },
@@ -324,9 +324,9 @@ export default function CompanyAdminBillForm({ billId, onBack, onSuccess }) {
                         onClick={() => setMode(option.value)}
                         disabled={readOnly}
                         aria-pressed={mode === option.value}
-                        className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50 ${
+                        className={`min-h-9 rounded-full px-3 py-1.5 text-sm font-semibold transition-colors disabled:opacity-50 ${
                           mode === option.value
-                            ? "bg-surface text-ink shadow-sm"
+                            ? "bg-primary-700 text-white shadow-sm"
                             : "text-muted hover:text-ink"
                         }`}
                       >
@@ -358,7 +358,7 @@ export default function CompanyAdminBillForm({ billId, onBack, onSuccess }) {
                       return (
                         <div
                           key={index}
-                          className="space-y-3 rounded-lg border border-line bg-slate-50/60 p-3"
+                          className="space-y-3 rounded-tile border border-primary-100 bg-primary-50/40 p-3"
                         >
                           <div className="flex items-end gap-3">
                             <Select

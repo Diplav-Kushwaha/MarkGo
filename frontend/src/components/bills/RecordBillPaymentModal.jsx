@@ -77,13 +77,13 @@ export default function RecordBillPaymentModal({ isOpen, onClose, bill, onRecord
       }
     >
       <form id="record-bill-payment-form" onSubmit={handleSubmit} noValidate className="space-y-5">
-        <div className="flex items-center justify-between rounded-lg border border-line bg-slate-50 px-4 py-3">
+        <div className="flex items-center justify-between rounded-tile border border-primary-100 bg-primary-50/50 px-4 py-3">
           <span className="text-sm text-body">Outstanding balance</span>
           <span className="text-lg font-semibold text-ink">{formatCurrency(bill.amountDue)}</span>
         </div>
 
         {error && (
-          <div className="rounded-lg border border-danger-line bg-danger-soft px-4 py-3 text-sm text-red-700">
+          <div className="rounded-control border border-danger-line bg-danger-soft px-4 py-3 text-sm text-red-700">
             {error}
           </div>
         )}

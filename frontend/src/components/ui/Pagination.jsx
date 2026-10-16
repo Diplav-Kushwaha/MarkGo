@@ -60,7 +60,7 @@ export default function Pagination({
           onClick={() => go(current - 1)}
           disabled={current <= 1}
           aria-label="Previous page"
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-line text-body transition-colors hover:bg-slate-50 hover:text-ink disabled:pointer-events-none disabled:opacity-40"
+          className="flex h-10 w-10 items-center justify-center rounded-control border border-line bg-white text-body shadow-sm transition-colors hover:bg-primary-50 hover:text-ink disabled:pointer-events-none disabled:opacity-40"
         >
           <ChevronLeft className="h-4 w-4" aria-hidden="true" />
         </button>
@@ -77,10 +77,10 @@ export default function Pagination({
                 onClick={() => go(p)}
                 aria-current={p === current ? "page" : undefined}
                 className={cn(
-                  "h-8 min-w-8 rounded-lg border px-2 text-xs font-medium transition-colors",
+                  "h-10 min-w-10 rounded-control border px-3 text-xs font-semibold transition-colors",
                   p === current
-                    ? "border-primary-600 bg-primary-600 text-white"
-                    : "border-line text-body hover:bg-slate-50 hover:text-ink"
+                    ? "border-primary-600 bg-primary-600 text-white shadow-sm"
+                    : "border-line bg-white text-body hover:bg-primary-50 hover:text-ink"
                 )}
               >
                 {p}
@@ -94,7 +94,7 @@ export default function Pagination({
           onClick={() => go(current + 1)}
           disabled={current >= totalPages}
           aria-label="Next page"
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-line text-body transition-colors hover:bg-slate-50 hover:text-ink disabled:pointer-events-none disabled:opacity-40"
+          className="flex h-10 w-10 items-center justify-center rounded-control border border-line bg-white text-body shadow-sm transition-colors hover:bg-primary-50 hover:text-ink disabled:pointer-events-none disabled:opacity-40"
         >
           <ChevronRight className="h-4 w-4" aria-hidden="true" />
         </button>

@@ -1,24 +1,20 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { getVendorProfile } from "../../api/vendorAuthApi";
 
 export default function VendorDashboard() {
   const { user, logout } = useAuth();
   const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        setLoading(true);
         const res = await getVendorProfile();
         if (res.success && res.data) {
           setProfile(res.data);
         }
       } catch (err) {
         console.error("Failed to load vendor profile:", err);
-      } finally {
-        setLoading(false);
       }
     };
 
@@ -42,7 +38,9 @@ export default function VendorDashboard() {
           <div className="flex items-center gap-4">
             <div className="text-right hidden sm:block">
               <p className="text-xs font-semibold text-gray-800">{profile?.name || user?.name || "Vendor"}</p>
-              <p className="text-[11px] text-gray-400">{profile?.email || user?.email}</p>
+              <p className="text-[11px] text-gray-400">
+                {profile?.email || user?.email || profile?.phoneNumber || user?.phoneNumber || "—"}
+              </p>
             </div>
             <button
               onClick={logout}
@@ -115,7 +113,9 @@ export default function VendorDashboard() {
             </div>
             <div className="flex justify-between py-2 border-b border-gray-50">
               <span className="text-gray-400 font-medium">Email Address</span>
-              <span className="text-gray-900 font-mono text-xs">{profile?.email || user?.email || "N/A"}</span>
+              <span className="text-gray-900 font-mono text-xs">
+                {profile?.email || user?.email || "Not provided"}
+              </span>
             </div>
             <div className="flex justify-between py-2 border-b border-gray-50">
               <span className="text-gray-400 font-medium">Phone Number</span>

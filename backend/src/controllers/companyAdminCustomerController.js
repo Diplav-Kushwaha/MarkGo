@@ -93,8 +93,9 @@ export async function getCustomerStats(req, res) {
 // GET /api/admin/customers/export
 export async function exportCustomers(req, res) {
   try {
-    const customers = await customerService.getCustomersForExport({ companyId: req.user.companyId });
-    return res.status(200).json({ success: true, data: customers });
+    const { rows, truncated } = await customerService.getCustomersForExport({ companyId: req.user.companyId });
+    res.set("X-Export-Truncated", String(truncated));
+    return res.status(200).json({ success: true, data: rows });
   } catch (err) {
     console.error("exportCustomers error:", err);
     return res.status(err.status || 500).json({ success: false, message: err.message || "Internal server error." });

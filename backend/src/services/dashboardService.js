@@ -1,10 +1,12 @@
 import prisma from "../prisma.js";
 import { toNumber } from "../utils/money.js";
 
+const SALES_STATUSES = ["SENT", "PARTIALLY_PAID", "PAID", "OVERDUE"];
+
 export async function getDashboardStats({ companyId }) {
   const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const nextMonthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
 
   // A CANCELLED invoice is neither money owed nor a realised sale, so it is
   // excluded from totalReceivable (via the status list below) and from
@@ -24,7 +26,7 @@ export async function getDashboardStats({ companyId }) {
       where: {
         companyId,
         invoiceDate: { gte: monthStart, lt: nextMonthStart },
-        status: { not: "CANCELLED" },
+        status: { in: SALES_STATUSES },
       },
       _sum: { grandTotal: true },
     }),

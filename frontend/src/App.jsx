@@ -1,48 +1,95 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./guards/ProtectedRoute";
 import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
 import RoleGuard from "./guards/RoleGuard";
 import Home from "./pages/Home";
+import NotFound from "./pages/NotFound";
+import About from "./pages/About";
 import CompanyRegister from "./pages/admin/CompanyRegister";
 import PlansPage from "./pages/subscription/PlansPage";
 import SubscriptionPaymentPage from "./pages/subscription/SubscriptionPaymentPage";
 import CompanyLogin from "./pages/admin/CompanyLogin";
 import SuperAdminLogin from "./pages/superadmin/SuperAdminLogin";
-import SuperAdminDashboard from "./pages/superadmin/SuperAdminDashboard";
-import SuperAdminCompanyDetails from "./pages/superadmin/SuperAdminCompanyDetails";
 import AcceptInvite from "./pages/customer/AcceptInvite";
 import CustomerLogin from "./pages/customer/CustomerLogin";
-import CustomerDashboard from "./pages/customer/CustomerDashboard";
+import CustomerLayout from "./pages/customer/CustomerLayout";
 import AcceptVendorInvite from "./pages/vendor/AcceptVendorInvite";
 import VendorLogin from "./pages/vendor/VendorLogin";
-import VendorDashboard from "./pages/vendor/VendorDashboard";
-import AcceptStaffInvite from "./pages/staff/AcceptStaffInvite";
-import StaffLogin from "./pages/staff/StaffLogin";
-import StaffDashboard from "./pages/staff/StaffDashboard";
-import AcceptAccountantInvite from "./pages/accountant/AcceptAccountantInvite";
-import AccountantLogin from "./pages/accountant/AccountantLogin";
-import AccountantDashboard from "./pages/accountant/AccountantDashboard";
+import VendorLayout from "./pages/vendor/VendorLayout";
+
 
 import CompanyAdminLayout from "./components/admin/CompanyAdminLayout";
-import CompanyAdminDashboardHome from "./pages/admin/CompanyAdminDashboardHome";
-import CompanyAdminCustomer from "./pages/admin/CompanyAdminCustomer";
-import CompanyAdminVendor from "./pages/admin/CompanyAdminVendor";
-import CompanyAdminTeamPage from "./pages/admin/CompanyAdminTeamPage";
-import CompanyAdminProductService from "./pages/admin/CompanyAdminProductService";
-import CompanyAdminPayment from "./pages/admin/CompanyAdminPayment";
-import CompanyAdminReport from "./pages/admin/CompanyAdminReport";
-import CompanyAdminSetting from "./pages/admin/CompanyAdminSetting";
-import CompanyAdminSubscription from "./pages/admin/CompanyAdminSubscription";
-import CompanySubscriptionRequired from "./pages/admin/CompanySubscriptionRequired";
-import {
-  InvoiceListRoute,
-  InvoiceNewRoute,
-  InvoiceEditRoute,
-  InvoiceDetailRoute,
-} from "./pages/admin/InvoiceRoutes";
-import { BillListRoute, BillNewRoute, BillEditRoute, BillDetailRoute } from "./pages/admin/BillRoutes";
+import ReportsLayout from "./components/admin/ReportsLayout";
 import ErrorBoundary from "./components/ErrorBoundary";
+import LoadingScreen from "./components/LoadingScreen";
+
+const CompanyAdminDashboardHome = lazy(() => import("./pages/admin/CompanyAdminDashboardHome"));
+const CompanyAdminCustomer = lazy(() => import("./pages/admin/CompanyAdminCustomer"));
+const CompanyAdminVendor = lazy(() => import("./pages/admin/CompanyAdminVendor"));
+const CompanyAdminProduct = lazy(() => import("./pages/admin/CompanyAdminProduct"));
+const CompanyAdminService = lazy(() => import("./pages/admin/CompanyAdminService"));
+const CompanyAdminUnitCategory = lazy(() => import("./pages/admin/CompanyAdminUnitCategory"));
+const CompanyAdminPayment = lazy(() => import("./pages/admin/CompanyAdminPayment"));
+const CompanyAdminSetting = lazy(() => import("./pages/admin/CompanyAdminSetting"));
+const CompanyAdminSubscription = lazy(() => import("./pages/admin/CompanyAdminSubscription"));
+const CompanySubscriptionRequired = lazy(() => import("./pages/admin/CompanySubscriptionRequired"));
+const SalesReportPage = lazy(() => import("./pages/admin/reports/SalesReportPage"));
+const PurchasesReportPage = lazy(() => import("./pages/admin/reports/PurchasesReportPage"));
+const TransactionsReportPage = lazy(() => import("./pages/admin/reports/TransactionsReportPage"));
+const ProfitLossReportPage = lazy(() => import("./pages/admin/reports/ProfitLossReportPage"));
+const SoldProductsReportPage = lazy(() => import("./pages/admin/reports/SoldProductsReportPage"));
+const SoldServicesReportPage = lazy(() => import("./pages/admin/reports/SoldServicesReportPage"));
+const CustomersReportPage = lazy(() => import("./pages/admin/reports/CustomersReportPage"));
+const VendorsReportPage = lazy(() => import("./pages/admin/reports/VendorsReportPage"));
+const ProductsReportPage = lazy(() => import("./pages/admin/reports/ProductsReportPage"));
+const ServicesReportPage = lazy(() => import("./pages/admin/reports/ServicesReportPage"));
+const CustomerPurchasedProducts = lazy(() => import("./pages/customer/CustomerPurchasedProducts"));
+const CustomerInvoices = lazy(() => import("./pages/customer/CustomerInvoices"));
+const CustomerInvoiceDetails = lazy(() => import("./pages/customer/CustomerInvoiceDetails"));
+const CustomerProducts = lazy(() => import("./pages/customer/CustomerProducts"));
+const CustomerServices = lazy(() => import("./pages/customer/CustomerServices"));
+const CustomerProfile = lazy(() => import("./pages/customer/CustomerProfile"));
+const VendorSoldProducts = lazy(() => import("./pages/vendor/VendorSoldProducts"));
+const VendorBills = lazy(() => import("./pages/vendor/VendorBills"));
+const VendorBillDetails = lazy(() => import("./pages/vendor/VendorBillDetails"));
+const VendorProducts = lazy(() => import("./pages/vendor/VendorProducts"));
+const VendorServices = lazy(() => import("./pages/vendor/VendorServices"));
+const VendorProfile = lazy(() => import("./pages/vendor/VendorProfile"));
+const SuperAdminDashboard = lazy(() => import("./pages/superadmin/SuperAdminDashboard"));
+const SuperAdminCompanyDetails = lazy(() => import("./pages/superadmin/SuperAdminCompanyDetails"));
+
+const loadInvoiceRoutes = () => import("./pages/admin/InvoiceRoutes");
+const InvoiceListRoute = lazy(() =>
+  loadInvoiceRoutes().then((routes) => ({ default: routes.InvoiceListRoute }))
+);
+const InvoiceNewRoute = lazy(() =>
+  loadInvoiceRoutes().then((routes) => ({ default: routes.InvoiceNewRoute }))
+);
+const InvoiceEditRoute = lazy(() =>
+  loadInvoiceRoutes().then((routes) => ({ default: routes.InvoiceEditRoute }))
+);
+const InvoiceDetailRoute = lazy(() =>
+  loadInvoiceRoutes().then((routes) => ({ default: routes.InvoiceDetailRoute }))
+);
+
+const loadBillRoutes = () => import("./pages/admin/BillRoutes");
+const BillListRoute = lazy(() =>
+  loadBillRoutes().then((routes) => ({ default: routes.BillListRoute }))
+);
+const BillNewRoute = lazy(() =>
+  loadBillRoutes().then((routes) => ({ default: routes.BillNewRoute }))
+);
+const BillEditRoute = lazy(() =>
+  loadBillRoutes().then((routes) => ({ default: routes.BillEditRoute }))
+);
+const BillDetailRoute = lazy(() =>
+  loadBillRoutes().then((routes) => ({ default: routes.BillDetailRoute }))
+);
+
+const layoutFallback = <LoadingScreen />;
 
 /**
  * Wraps the route table in the error boundary.
@@ -60,6 +107,8 @@ function RoutesWithBoundary() {
       <Routes>
         {/* 1. Root & Public Auth Routes */}
         <Route path="/" element={<Home />} />
+        {/* Public About page — the navbar's About link points here. */}
+        <Route path="/about" element={<About />} />
               {/* New-company flow: pick a plan first, then register, then (paid plans)
                   complete the dummy payment. */}
               <Route path="/plans" element={<PlansPage />} />
@@ -73,28 +122,58 @@ function RoutesWithBoundary() {
               <Route path="/customer/login" element={<CustomerLogin />} />
               <Route path="/accept-vendor-invite" element={<AcceptVendorInvite />} />
               <Route path="/vendor/login" element={<VendorLogin />} />
-              <Route path="/accept-staff-invite" element={<AcceptStaffInvite />} />
-              <Route path="/staff/login" element={<StaffLogin />} />
-              <Route path="/accept-accountant-invite" element={<AcceptAccountantInvite />} />
-              <Route path="/accountant/login" element={<AccountantLogin />} />
 
               {/* 2. Protected Routes (Require active authentication) */}
               <Route element={<ProtectedRoute />}>
                 {/* Company Admin Only — shared shell, one sidebar + header for every page */}
                 <Route element={<RoleGuard allowedRole="COMPANY_ADMIN" />}>
-                  <Route path="/admin" element={<CompanyAdminLayout />}>
+                  <Route
+                    path="/admin"
+                    element={
+                      <Suspense fallback={layoutFallback}>
+                        <CompanyAdminLayout />
+                      </Suspense>
+                    }
+                  >
                     <Route index element={<Navigate to="/admin/dashboard" replace />} />
                     <Route path="dashboard" element={<CompanyAdminDashboardHome />} />
                     <Route path="customers" element={<CompanyAdminCustomer />} />
                     <Route path="vendors" element={<CompanyAdminVendor />} />
-                    <Route path="team" element={<CompanyAdminTeamPage />} />
-                    <Route path="products" element={<CompanyAdminProductService />} />
-                    <Route path="reports" element={<CompanyAdminReport />} />
+                    {/* Split catalogue pages. The old combined "Products & Services"
+                        route was /admin/products, which now serves the Products page,
+                        so existing links to it keep working. */}
+                    <Route path="products" element={<CompanyAdminProduct />} />
+                    <Route path="services" element={<CompanyAdminService />} />
+                    <Route path="unit-category" element={<CompanyAdminUnitCategory />} />
+                    {/* Reports section. The base route no longer shows the old
+                        landing page - it redirects to the Sales report.
+                        ReportsLayout renders the reports sidebar once and wraps
+                        all ten report pages (their route paths are unchanged).
+                        An unknown reports path falls back to Sales - no loop,
+                        because /admin/reports/sales matches the sales route. */}
+                    <Route
+                      path="reports"
+                      element={
+                        <Suspense fallback={layoutFallback}>
+                          <ReportsLayout />
+                        </Suspense>
+                      }
+                    >
+                      <Route index element={<Navigate to="/admin/reports/sales" replace />} />
+                      <Route path="sales" element={<SalesReportPage />} />
+                      <Route path="purchases" element={<PurchasesReportPage />} />
+                      <Route path="transactions" element={<TransactionsReportPage />} />
+                      <Route path="profit-loss" element={<ProfitLossReportPage />} />
+                      <Route path="product-profit" element={<SoldProductsReportPage />} />
+                      <Route path="service-profit" element={<SoldServicesReportPage />} />
+                      <Route path="customers" element={<CustomersReportPage />} />
+                      <Route path="vendors" element={<VendorsReportPage />} />
+                      <Route path="products" element={<ProductsReportPage />} />
+                      <Route path="services" element={<ServicesReportPage />} />
+                      <Route path="*" element={<Navigate to="/admin/reports/sales" replace />} />
+                    </Route>
                     <Route path="settings" element={<CompanyAdminSetting />} />
                     <Route path="subscription" element={<CompanyAdminSubscription />} />
-
-                    {/* Accountants now live on the Team page; keep old links working */}
-                    <Route path="accountants" element={<Navigate to="/admin/team?role=accountant" replace />} />
 
                     {/* Not in the sidebar, but still reachable by URL */}
                     <Route path="payments" element={<CompanyAdminPayment />} />
@@ -122,12 +201,22 @@ function RoutesWithBoundary() {
                       wrapped in any subscription check. */}
                   <Route
                     path="/admin/subscription-required"
-                    element={<CompanySubscriptionRequired />}
+                    element={
+                      <Suspense fallback={layoutFallback}>
+                        <CompanySubscriptionRequired />
+                      </Suspense>
+                    }
                   />
                 </Route>
 
                 {/* Super Admin Only */}
-                <Route element={<RoleGuard allowedRole="SUPERADMIN" />}>
+                <Route
+                  element={
+                    <Suspense fallback={layoutFallback}>
+                      <RoleGuard allowedRole="SUPERADMIN" />
+                    </Suspense>
+                  }
+                >
                   <Route path="/superadmin/dashboard" element={<SuperAdminDashboard />} />
                   <Route
                     path="/superadmin/companies/:id"
@@ -135,29 +224,57 @@ function RoutesWithBoundary() {
                   />
                 </Route>
 
-                {/* Customer Only */}
+                {/* Customer Only — shared dashboard shell (navbar + sidebar + content) */}
                 <Route element={<RoleGuard allowedRole="CUSTOMER" />}>
-                  <Route path="/customer/dashboard" element={<CustomerDashboard />} />
+                  <Route
+                    path="/customer/dashboard"
+                    element={
+                      <Suspense fallback={layoutFallback}>
+                        <CustomerLayout />
+                      </Suspense>
+                    }
+                  >
+                    {/* Base route redirects to the Purchased Products & Services
+                        page. The old customer landing page component is left in
+                        place on disk but is no longer routed. */}
+                    <Route index element={<Navigate to="/customer/dashboard/purchased-products" replace />} />
+                    <Route path="purchased-products" element={<CustomerPurchasedProducts />} />
+                    <Route path="invoices" element={<CustomerInvoices />} />
+                    <Route path="invoices/:id" element={<CustomerInvoiceDetails />} />
+                    <Route path="products" element={<CustomerProducts />} />
+                    <Route path="services" element={<CustomerServices />} />
+                    <Route path="profile" element={<CustomerProfile />} />
+                    <Route path="*" element={<Navigate to="/customer/dashboard/invoices" replace />} />
+                  </Route>
                 </Route>
 
-                {/* Vendor Only */}
-                <Route element={<RoleGuard allowedRole="VENDOR" />}>
-                  <Route path="/vendor/dashboard" element={<VendorDashboard />} />
+              {/* Vendor Only — shared dashboard shell (navbar + sidebar + content), strictly read-only */}
+              <Route element={<RoleGuard allowedRole="VENDOR" />}>
+                <Route
+                  path="/vendor/dashboard"
+                  element={
+                    <Suspense fallback={layoutFallback}>
+                      <VendorLayout />
+                    </Suspense>
+                  }
+                >
+                  {/* Base route redirects to the Sold Products & Services page.
+                      The old vendor landing page component is left in place on
+                      disk but is no longer routed. */}
+                  <Route index element={<Navigate to="/vendor/dashboard/sold-products" replace />} />
+                  <Route path="sold-products" element={<VendorSoldProducts />} />
+                  <Route path="bills" element={<VendorBills />} />
+                  <Route path="bills/:id" element={<VendorBillDetails />} />
+                  <Route path="products" element={<VendorProducts />} />
+                  <Route path="services" element={<VendorServices />} />
+                  <Route path="profile" element={<VendorProfile />} />
+                  <Route path="*" element={<Navigate to="/vendor/dashboard/bills" replace />} />
                 </Route>
-
-                {/* Staff Only */}
-                <Route element={<RoleGuard allowedRole="STAFF" />}>
-                  <Route path="/staff/dashboard" element={<StaffDashboard />} />
-                </Route>
-
-                {/* Accountant Only */}
-                <Route element={<RoleGuard allowedRole="ACCOUNTANT" />}>
-                  <Route path="/accountant/dashboard" element={<AccountantDashboard />} />
-                </Route>
+              </Route>
               </Route>
 
               {/* 3. Fallback Catch-all */}
-              <Route path="*" element={<Navigate to="/" replace />} />
+              <Route path="*" element={<NotFound />} />
             </Routes>
       </ErrorBoundary>
   );
@@ -167,12 +284,16 @@ export default function App() {
   return (
     <AuthProvider>
       <Router>
-        <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
+        <div className="min-h-screen flex flex-col bg-transparent font-sans">
           <Navbar />
 
           <main className="flex-grow">
             <RoutesWithBoundary />
           </main>
+
+          {/* Public footer for the marketing pages; hides itself for every
+              signed-in role, so the dashboards render exactly as before. */}
+          <Footer />
         </div>
       </Router>
     </AuthProvider>

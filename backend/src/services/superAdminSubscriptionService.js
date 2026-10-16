@@ -88,11 +88,14 @@ export async function listSubscriptions({
 
   const term = typeof search === "string" ? search.trim() : "";
   if (term) {
+    // No `mode: "insensitive"`: Prisma only accepts it on PostgreSQL and
+    // SQLServer, and rejects it on MySQL. These columns are utf8mb4_unicode_ci,
+    // so `contains` already matches case-insensitively.
     where.company = {
       OR: [
-        { name: { contains: term, mode: "insensitive" } },
-        { slug: { contains: term, mode: "insensitive" } },
-        { email: { contains: term, mode: "insensitive" } },
+        { name: { contains: term } },
+        { slug: { contains: term } },
+        { email: { contains: term } },
       ],
     };
   }

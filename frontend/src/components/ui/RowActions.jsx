@@ -32,9 +32,9 @@ export default function RowActions({ actions = [], label = "Row actions", align 
   if (visible.length === 0) return null;
 
   const toneClasses = {
-    default: "text-body hover:bg-slate-100 hover:text-ink",
+    default: "text-body hover:bg-primary-50 hover:text-ink",
     danger: "text-red-600 hover:bg-red-50 hover:text-red-700",
-    primary: "text-primary-600 hover:bg-primary-50 hover:text-primary-700",
+    primary: "text-primary-700 hover:bg-primary-50 hover:text-primary-800",
   };
 
   return (
@@ -49,8 +49,8 @@ export default function RowActions({ actions = [], label = "Row actions", align 
         aria-expanded={open}
         aria-label={label}
         className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-slate-100 hover:text-ink",
-          open && "bg-slate-100 text-ink"
+          "flex h-10 w-10 items-center justify-center rounded-control text-muted transition-colors hover:bg-primary-50 hover:text-ink",
+          open && "bg-primary-50 text-ink"
         )}
       >
         <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
@@ -60,7 +60,7 @@ export default function RowActions({ actions = [], label = "Row actions", align 
         <div
           role="menu"
           className={cn(
-            "absolute z-30 mt-1 min-w-44 overflow-hidden rounded-lg border border-line bg-surface py-1 shadow-pop",
+            "absolute z-30 mt-1 min-w-44 overflow-hidden rounded-card border border-line bg-white py-1 shadow-pop",
             align === "right" ? "right-0" : "left-0"
           )}
         >

@@ -83,10 +83,12 @@ export default function CustomerPickerField({ value, onChange, error, disabled }
                     setOpen(false);
                     setSearch("");
                   }}
-                  className="flex w-full flex-col gap-0.5 border-b border-line px-4 py-2.5 text-left last:border-0 hover:bg-slate-50"
+                  className="flex w-full flex-col gap-0.5 border-b border-line px-4 py-2.5 text-left last:border-0 hover:bg-primary-50"
                 >
                   <span className="text-sm font-medium text-ink">{customer.name}</span>
-                  <span className="text-xs text-muted">{customer.email}</span>
+                  <span className="text-xs text-muted">
+                    {customer.email || customer.phoneNumber || "—"}
+                  </span>
                 </button>
               ))
             )}

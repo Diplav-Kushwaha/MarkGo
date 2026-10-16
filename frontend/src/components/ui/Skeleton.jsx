@@ -1,7 +1,7 @@
 import { cn } from "../../lib/cn";
 
 export default function Skeleton({ className }) {
-  return <div className={cn("animate-pulse rounded bg-slate-200", className)} />;
+  return <div className={cn("animate-pulse rounded bg-[#E8E4F3]", className)} />;
 }
 
 export function SkeletonText({ lines = 3, className }) {
@@ -21,7 +21,7 @@ export function SkeletonStatCards({ count = 4 }) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {Array.from({ length: count }).map((_, index) => (
-        <div key={index} className="rounded-lg border border-line bg-surface p-5 shadow-card">
+        <div key={index} className="rounded-card border border-line bg-white p-5 shadow-card">
           <div className="flex items-start justify-between">
             <Skeleton className="h-3 w-24" />
             <Skeleton className="h-9 w-9 rounded-lg" />
@@ -36,8 +36,8 @@ export function SkeletonStatCards({ count = 4 }) {
 
 export function SkeletonTable({ rows = 8, columns = 6 }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-line bg-surface shadow-card">
-      <div className="border-b border-line bg-slate-50 px-5 py-3">
+    <div className="overflow-hidden rounded-card border border-line bg-white shadow-card">
+      <div className="border-b border-line bg-primary-50/60 px-5 py-3">
         <Skeleton className="h-3 w-40" />
       </div>
       <div className="divide-y divide-line">

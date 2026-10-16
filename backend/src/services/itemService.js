@@ -1,4 +1,7 @@
 import prisma from "../prisma.js";
+import { LOW_STOCK_THRESHOLD } from "../config/products.js";
+
+const EXPORT_MAX_ROWS = 10_000;
 
 async function checkDuplicateSku(companyId, sku, excludeItemId = null) {
   if (!sku || !sku.trim()) return null;
@@ -171,7 +174,7 @@ export async function listItems({
 }
 
 export async function getItemStats({ companyId }) {
-  const [totalProducts, totalServices, inactiveItems, allProducts] = await Promise.all([
+  const [totalProducts, totalServices, inactiveItems, lowStockCount] = await Promise.all([
     prisma.item.count({
       where: { companyId, isDeleted: false, type: "PRODUCT" },
     }),
@@ -181,15 +184,15 @@ export async function getItemStats({ companyId }) {
     prisma.item.count({
       where: { companyId, isDeleted: false, status: "INACTIVE" },
     }),
-    prisma.item.findMany({
-      where: { companyId, isDeleted: false, type: "PRODUCT", trackInventory: true },
-      select: { stockQuantity: true, reorderLevel: true },
+    prisma.item.count({
+      where: {
+        companyId,
+        isDeleted: false,
+        type: "PRODUCT",
+        stockQuantity: { gt: 0, lte: LOW_STOCK_THRESHOLD },
+      },
     }),
   ]);
-
-  const lowStockCount = allProducts.filter(
-    (p) => Number(p.stockQuantity) <= Number(p.reorderLevel)
-  ).length;
 
   return {
     totalProducts,
@@ -307,13 +310,15 @@ export async function bulkActionItems({ companyId, itemIds, action, category }) 
 
 // Export items to JSON array for CSV conversion
 export async function getItemsForExport({ companyId }) {
-  return prisma.item.findMany({
+  const rows = await prisma.item.findMany({
     where: { companyId, isDeleted: false },
     orderBy: { createdAt: "desc" },
+    take: EXPORT_MAX_ROWS + 1,
     include: {
       linkedVendor: {
         select: { name: true },
       },
     },
   });
+  return { rows: rows.slice(0, EXPORT_MAX_ROWS), truncated: rows.length > EXPORT_MAX_ROWS };
 }

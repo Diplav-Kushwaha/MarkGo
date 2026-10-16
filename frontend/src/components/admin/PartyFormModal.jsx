@@ -1,10 +1,8 @@
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { Button, Input, Modal } from "../ui";
+import { isValidPhone, normalizePhone, INVALID_PHONE_MESSAGE } from "../../lib/phone";
 
-// Mirrors the backend validators (customerSchemas.js / vendorSchemas.js) so the
-// user gets feedback before a round trip.
-const PHONE_PATTERN = /^\+?[1-9]\d{7,14}$/;
 const GSTIN_PATTERN = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -23,23 +21,25 @@ function validate(values) {
   if (!values.name.trim()) errors.name = "Name is required.";
   else if (values.name.trim().length < 2) errors.name = "Must be at least 2 characters.";
 
-  if (!values.email.trim()) errors.email = "Email is required.";
-  else if (!EMAIL_PATTERN.test(values.email.trim())) errors.email = "Enter a valid email address.";
+  if (!values.phoneNumber.trim()) {
+    errors.phoneNumber = "Phone number is required.";
+  } else if (!isValidPhone(values.phoneNumber)) {
+    errors.phoneNumber = INVALID_PHONE_MESSAGE;
+  }
 
-  if (values.phoneNumber.trim() && !PHONE_PATTERN.test(values.phoneNumber.trim())) {
-    errors.phoneNumber = "Enter a valid phone number (8-15 digits).";
+  if (values.creditLimit === "" || values.creditLimit === null || values.creditLimit === undefined) {
+    errors.creditLimit = "Credit limit is required.";
+  } else if (Number.isNaN(Number(values.creditLimit)) || Number(values.creditLimit) < 0) {
+    errors.creditLimit = "Credit limit cannot be negative.";
+  }
+
+  // Optional fields are only validated when a value is provided.
+  if (values.email.trim() && !EMAIL_PATTERN.test(values.email.trim())) {
+    errors.email = "Enter a valid email address.";
   }
 
   if (values.taxNumber.trim() && !GSTIN_PATTERN.test(values.taxNumber.trim().toUpperCase())) {
     errors.taxNumber = "Enter a valid 15-character GSTIN.";
-  }
-
-  if (values.creditLimit !== "" && Number(values.creditLimit) < 0) {
-    errors.creditLimit = "Credit limit cannot be negative.";
-  }
-
-  if (!values.billingAddress.line1.trim()) {
-    errors["billingAddress.line1"] = "Address line 1 is required.";
   }
 
   return errors;
@@ -70,6 +70,7 @@ export default function PartyFormModal({
   onSubmit,
   onDelete,
   party,
+  mode,
   partyLabel = "Customer",
   nameLabel = "Customer / Business Name",
   addressLabel = "Billing Address",
@@ -77,9 +78,9 @@ export default function PartyFormModal({
   deleting = false,
   serverError = "",
 }) {
-  const isEdit = Boolean(party);
-  // The page mounts this only while the dialog is open, so the initial values
-  // can be read straight from props instead of being synced in an effect.
+  // "add" shows only the registration fields; "edit" shows every
+  // field so optional details can be filled in later.
+  const isEdit = mode ? mode === "edit" : Boolean(party);
   const [values, setValues] = useState(() => (isEdit ? toFormValues(party) : EMPTY_PARTY));
   const [errors, setErrors] = useState({});
 
@@ -101,21 +102,24 @@ export default function PartyFormModal({
     setErrors(found);
     if (Object.values(found).some(Boolean)) return;
 
-    // Payload shape is unchanged from the previous implementation — empty
-    // optional fields are sent as undefined so the backend defaults apply.
+    const email = values.email.trim();
+    const taxNumber = values.taxNumber.trim();
     const address = values.billingAddress;
+
+    // Blank optional values are sent as null so they are stored
+    // as NULL instead of reaching the database as "".
     await onSubmit({
       name: values.name.trim(),
-      email: values.email.trim().toLowerCase(),
-      phoneNumber: values.phoneNumber.trim() || undefined,
-      taxNumber: values.taxNumber.trim() || undefined,
-      creditLimit: values.creditLimit ? Number(values.creditLimit) : undefined,
+      email: email ? email.toLowerCase() : null,
+      phoneNumber: normalizePhone(values.phoneNumber),
+      taxNumber: taxNumber ? taxNumber.toUpperCase() : null,
+      creditLimit: Number(values.creditLimit),
       billingAddress: {
-        line1: address.line1.trim(),
-        city: address.city.trim() || undefined,
-        state: address.state.trim() || undefined,
-        country: address.country.trim() || undefined,
-        postalCode: address.postalCode.trim() || undefined,
+        line1: address.line1.trim() || null,
+        city: address.city.trim() || null,
+        state: address.state.trim() || null,
+        country: address.country.trim() || null,
+        postalCode: address.postalCode.trim() || null,
       },
       sameAsBilling: true,
     });
@@ -130,12 +134,12 @@ export default function PartyFormModal({
       description={
         isEdit
           ? `Update ${partyLabel.toLowerCase()} details and billing address.`
-          : `Create a ${partyLabel.toLowerCase()} record. You can send them a login invite afterwards.`
+          : `Create a ${partyLabel.toLowerCase()} record. Required: Name, Phone, Credit Limit. You can send a login invite afterwards.`
       }
     >
       <form id="party-form" onSubmit={handleSubmit} noValidate className="space-y-5">
         {serverError && (
-          <div className="rounded-lg border border-danger-line bg-danger-soft px-4 py-3 text-sm text-red-700">
+          <div className="rounded-control border border-danger-line bg-danger-soft px-4 py-3 text-sm text-red-700">
             {serverError}
           </div>
         )}
@@ -152,33 +156,18 @@ export default function PartyFormModal({
           />
 
           <Input
-            label="Email address"
-            type="email"
-            required
-            value={values.email}
-            onChange={(e) => setField("email", e.target.value)}
-            error={errors.email}
-            placeholder="name@example.com"
-          />
-
-          <Input
             label="Phone number"
+            required
             value={values.phoneNumber}
-            onChange={(e) => setField("phoneNumber", e.target.value)}
+            onChange={(e) => setField("phoneNumber", e.target.value.replace(/\D/g, "").slice(0, 10))}
             error={errors.phoneNumber}
             placeholder="e.g. 9876543210"
-          />
-
-          <Input
-            label="Tax / GST number"
-            value={values.taxNumber}
-            onChange={(e) => setField("taxNumber", e.target.value.toUpperCase())}
-            error={errors.taxNumber}
-            placeholder="Optional"
+            hint="Required. 10 digits. Used for login."
           />
 
           <Input
             label="Credit limit"
+            required
             type="number"
             min="0"
             prefix="₹"
@@ -186,16 +175,37 @@ export default function PartyFormModal({
             onChange={(e) => setField("creditLimit", e.target.value)}
             error={errors.creditLimit}
             placeholder="e.g. 50000"
+            hint="Required"
           />
+
+          {isEdit && (
+            <>
+              <Input
+                label="Email address (optional)"
+                type="email"
+                value={values.email}
+                onChange={(e) => setField("email", e.target.value)}
+                error={errors.email}
+                placeholder="name@example.com"
+              />
+
+              <Input
+                label="Tax / GST number (optional)"
+                value={values.taxNumber}
+                onChange={(e) => setField("taxNumber", e.target.value.toUpperCase())}
+                error={errors.taxNumber}
+                placeholder="Optional"
+              />
+            </>
+          )}
         </div>
 
-        <fieldset className="space-y-4 border-t border-line pt-5">
-          <legend className="text-sm font-medium text-ink">{addressLabel}</legend>
+        <fieldset className="space-y-4 border-t border-primary-100 pt-5">
+          <legend className="text-sm font-medium text-ink">{addressLabel} (optional)</legend>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input
               label="Address line 1"
-              required
               value={values.billingAddress.line1}
               onChange={(e) => setField("billingAddress.line1", e.target.value)}
               error={errors["billingAddress.line1"]}
@@ -203,33 +213,37 @@ export default function PartyFormModal({
               containerClassName="sm:col-span-2"
             />
 
-            <Input
-              label="City"
-              value={values.billingAddress.city}
-              onChange={(e) => setField("billingAddress.city", e.target.value)}
-            />
+            {isEdit && (
+              <>
+                <Input
+                  label="City"
+                  value={values.billingAddress.city}
+                  onChange={(e) => setField("billingAddress.city", e.target.value)}
+                />
 
-            <Input
-              label="State"
-              value={values.billingAddress.state}
-              onChange={(e) => setField("billingAddress.state", e.target.value)}
-            />
+                <Input
+                  label="State"
+                  value={values.billingAddress.state}
+                  onChange={(e) => setField("billingAddress.state", e.target.value)}
+                />
 
-            <Input
-              label="Country"
-              value={values.billingAddress.country}
-              onChange={(e) => setField("billingAddress.country", e.target.value)}
-            />
+                <Input
+                  label="Country"
+                  value={values.billingAddress.country}
+                  onChange={(e) => setField("billingAddress.country", e.target.value)}
+                />
 
-            <Input
-              label="Postal code"
-              value={values.billingAddress.postalCode}
-              onChange={(e) => setField("billingAddress.postalCode", e.target.value)}
-            />
+                <Input
+                  label="Postal code"
+                  value={values.billingAddress.postalCode}
+                  onChange={(e) => setField("billingAddress.postalCode", e.target.value)}
+                />
+              </>
+            )}
           </div>
         </fieldset>
 
-        <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
+        <div className="flex items-center justify-between gap-3 border-t border-primary-100 pt-4">
           {isEdit && onDelete ? (
             <Button
               type="button"

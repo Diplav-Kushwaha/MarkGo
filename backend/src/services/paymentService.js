@@ -7,13 +7,55 @@ const SETTLED_TOLERANCE = new Decimal("0.01");
 
 const PAYABLE_INVOICE_STATUSES = ["SENT", "PARTIALLY_PAID", "OVERDUE"];
 const PAYABLE_BILL_STATUSES = ["UNPAID", "PARTIALLY_PAID"];
+const PAYMENT_RACE = Symbol("paymentRace");
+
+function paymentConflictError() {
+  const err = new Error("Payment conflict, please retry");
+  err.status = 409;
+  return err;
+}
+
+function retryablePaymentRaceError() {
+  const err = paymentConflictError();
+  err[PAYMENT_RACE] = true;
+  return err;
+}
+
+async function withPaymentConflictRetry(work) {
+  let raced = false;
+
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      return await prisma.$transaction((tx) => work(tx));
+    } catch (err) {
+      if (err?.[PAYMENT_RACE]) {
+        raced = true;
+        if (attempt < 3) continue;
+        throw paymentConflictError();
+      }
+
+      // A retry can observe the competing payment's new state, in which case
+      // the normal payable-status check would otherwise hide the lost race.
+      if (raced && (err?.status === 400 || err?.status === 404)) {
+        throw paymentConflictError();
+      }
+      throw err;
+    }
+  }
+
+  throw paymentConflictError();
+}
 
 /**
  * Works out the new paid/due amounts and the resulting status for a document
  * after another payment is applied. Returns null when the payment would
  * exceed the outstanding balance.
  */
-function applyPayment({ currentPaid, documentTotal, paymentAmount }) {
+function applyPayment({ currentPaid, currentDue, documentTotal, paymentAmount }) {
+  if (paymentAmount.gt(new Decimal(currentDue || 0))) {
+    return null;
+  }
+
   const newPaid = new Decimal(currentPaid || 0).plus(paymentAmount);
   const remaining = new Decimal(documentTotal).minus(newPaid);
 
@@ -75,11 +117,12 @@ async function loadBillForPayment(tx, { companyId, billId }) {
 export async function recordInvoicePayment({ companyId, userId, invoiceId, payload }) {
   const paymentAmount = new Decimal(payload.amount);
 
-  return prisma.$transaction(async (tx) => {
+  return withPaymentConflictRetry(async (tx) => {
     const invoice = await loadInvoiceForPayment(tx, { companyId, invoiceId });
 
     const result = applyPayment({
       currentPaid: invoice.amountPaid,
+      currentDue: invoice.amountDue,
       documentTotal: invoice.grandTotal,
       paymentAmount,
     });
@@ -89,6 +132,25 @@ export async function recordInvoicePayment({ companyId, userId, invoiceId, paylo
       err.status = 400;
       throw err;
     }
+
+    const status = result.isSettled
+      ? "PAID"
+      : invoice.status === "OVERDUE"
+        ? "OVERDUE"
+        : "PARTIALLY_PAID";
+
+    const claimed = await tx.invoice.updateMany({
+      where: {
+        id: invoice.id,
+        companyId,
+        grandTotal: invoice.grandTotal,
+        amountPaid: invoice.amountPaid,
+        amountDue: invoice.amountDue,
+        status: invoice.status,
+      },
+      data: { amountPaid: result.amountPaid, amountDue: result.amountDue, status },
+    });
+    if (claimed.count === 0) throw retryablePaymentRaceError();
 
     const payment = await tx.payment.create({
       data: {
@@ -101,17 +163,6 @@ export async function recordInvoicePayment({ companyId, userId, invoiceId, paylo
         paymentDate: payload.paymentDate,
         recordedById: userId,
       },
-    });
-
-    const status = result.isSettled
-      ? "PAID"
-      : invoice.status === "OVERDUE"
-        ? "OVERDUE"
-        : "PARTIALLY_PAID";
-
-    await tx.invoice.update({
-      where: { id: invoice.id },
-      data: { amountPaid: result.amountPaid, amountDue: result.amountDue, status },
     });
 
     await tx.customer.update({
@@ -134,11 +185,12 @@ export async function recordInvoicePayment({ companyId, userId, invoiceId, paylo
 export async function recordBillPayment({ companyId, userId, billId, payload }) {
   const paymentAmount = new Decimal(payload.amount);
 
-  return prisma.$transaction(async (tx) => {
+  return withPaymentConflictRetry(async (tx) => {
     const bill = await loadBillForPayment(tx, { companyId, billId });
 
     const result = applyPayment({
       currentPaid: bill.amountPaid,
+      currentDue: bill.amountDue,
       documentTotal: bill.total,
       paymentAmount,
     });
@@ -148,6 +200,21 @@ export async function recordBillPayment({ companyId, userId, billId, payload }) 
       err.status = 400;
       throw err;
     }
+
+    const status = result.isSettled ? "PAID" : "PARTIALLY_PAID";
+
+    const claimed = await tx.bill.updateMany({
+      where: {
+        id: bill.id,
+        companyId,
+        total: bill.total,
+        amountPaid: bill.amountPaid,
+        amountDue: bill.amountDue,
+        status: bill.status,
+      },
+      data: { amountPaid: result.amountPaid, amountDue: result.amountDue, status },
+    });
+    if (claimed.count === 0) throw retryablePaymentRaceError();
 
     const payment = await tx.payment.create({
       data: {
@@ -160,13 +227,6 @@ export async function recordBillPayment({ companyId, userId, billId, payload }) 
         paymentDate: payload.paymentDate,
         recordedById: userId,
       },
-    });
-
-    const status = result.isSettled ? "PAID" : "PARTIALLY_PAID";
-
-    await tx.bill.update({
-      where: { id: bill.id },
-      data: { amountPaid: result.amountPaid, amountDue: result.amountDue, status },
     });
 
     await tx.vendor.update({
@@ -191,31 +251,44 @@ export async function recordBillPayment({ companyId, userId, billId, payload }) 
  * bill in one go where the individual transfers are not itemised.
  */
 export async function markBillAsPaid({ companyId, userId, billId, paymentDate, method = "OTHER", note }) {
-  const bill = await prisma.bill.findFirst({
-    where: { id: billId, companyId },
-    select: { id: true, vendorId: true, total: true, amountPaid: true, amountDue: true, status: true, billNumber: true },
-  });
+  return withPaymentConflictRetry(async (tx) => {
+    const bill = await tx.bill.findFirst({
+      where: { id: billId, companyId },
+      select: { id: true, companyId: true, vendorId: true, total: true, amountPaid: true, amountDue: true, status: true, billNumber: true },
+    });
 
-  if (!bill) {
-    const err = new Error("Bill not found or access denied.");
-    err.status = 404;
-    throw err;
-  }
+    if (!bill) {
+      const err = new Error("Bill not found or access denied.");
+      err.status = 404;
+      throw err;
+    }
 
-  if (bill.status === "PAID") {
-    const err = new Error("This bill is already marked as paid.");
-    err.status = 400;
-    throw err;
-  }
+    if (bill.status === "PAID") {
+      const err = new Error("This bill is already marked as paid.");
+      err.status = 400;
+      throw err;
+    }
 
-  const outstanding = new Decimal(bill.amountDue);
-  if (outstanding.lte(0)) {
-    const err = new Error("This bill has no outstanding balance.");
-    err.status = 400;
-    throw err;
-  }
+    const outstanding = new Decimal(bill.amountDue);
+    if (outstanding.lte(0)) {
+      const err = new Error("This bill has no outstanding balance.");
+      err.status = 400;
+      throw err;
+    }
 
-  return prisma.$transaction(async (tx) => {
+    const claimed = await tx.bill.updateMany({
+      where: {
+        id: bill.id,
+        companyId,
+        total: bill.total,
+        amountPaid: bill.amountPaid,
+        amountDue: bill.amountDue,
+        status: bill.status,
+      },
+      data: { amountPaid: bill.total, amountDue: 0, status: "PAID" },
+    });
+    if (claimed.count === 0) throw retryablePaymentRaceError();
+
     const payment = await tx.payment.create({
       data: {
         companyId,
@@ -226,11 +299,6 @@ export async function markBillAsPaid({ companyId, userId, billId, paymentDate, m
         paymentDate: paymentDate ?? new Date(),
         recordedById: userId,
       },
-    });
-
-    await tx.bill.update({
-      where: { id: bill.id },
-      data: { amountPaid: bill.total, amountDue: 0, status: "PAID" },
     });
 
     await tx.vendor.update({

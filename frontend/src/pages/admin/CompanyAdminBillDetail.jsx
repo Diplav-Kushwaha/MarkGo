@@ -415,7 +415,7 @@ export default function CompanyAdminBillDetail({ billId, onBack, onEdit }) {
                 </div>
               </div>
 
-              <div className="mt-4 flex items-center justify-between rounded-lg border border-line bg-slate-50 px-4 py-3">
+              <div className="mt-4 flex items-center justify-between rounded-tile border border-primary-100 bg-primary-50/50 px-4 py-3">
                 <span className="text-sm font-medium text-body">Amount due</span>
                 <span className={`text-xl font-semibold ${hasOutstanding ? "text-danger" : "text-success"}`}>
                   {formatCurrency(bill.amountDue)}

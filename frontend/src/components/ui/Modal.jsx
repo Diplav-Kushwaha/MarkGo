@@ -46,7 +46,7 @@ export default function Modal({
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
       <div
-        className="absolute inset-0 bg-slate-900/40"
+        className="absolute inset-0 bg-[#111A3A]/40 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -56,7 +56,7 @@ export default function Modal({
         aria-modal="true"
         aria-label={title}
         className={cn(
-          "relative flex max-h-[88vh] w-full flex-col overflow-hidden rounded-lg bg-surface shadow-pop",
+          "relative flex max-h-[88vh] w-full flex-col overflow-hidden rounded-frame border border-primary-100 bg-white shadow-pop",
           width || WIDTHS[size] || WIDTHS.md,
           className
         )}
@@ -82,7 +82,7 @@ export default function Modal({
         <div className="scrollbar-slim flex-1 overflow-y-auto px-6 py-5">{children}</div>
 
         {footer && (
-          <div className="flex items-center justify-end gap-2 border-t border-line bg-slate-50 px-6 py-3">
+          <div className="flex items-center justify-end gap-2 border-t border-line bg-primary-50/60 px-6 py-4">
             {footer}
           </div>
         )}

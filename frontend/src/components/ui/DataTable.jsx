@@ -27,14 +27,14 @@ export default function DataTable({
   return (
     <div
       className={cn(
-        contained ? "overflow-hidden" : "overflow-hidden rounded-lg border border-line bg-surface shadow-card",
+        contained ? "overflow-hidden" : "overflow-hidden rounded-card border border-line bg-white shadow-card",
         maxHeight,
         className
       )}
     >
       <div className="overflow-auto scrollbar-slim">
         <table className="w-full border-collapse text-sm">
-          <thead className="sticky top-0 z-10 bg-slate-50">
+          <thead className="sticky top-0 z-10 bg-primary-50/70">
             <tr className="border-b border-line">
               {columns.map((col) => (
                 <th
@@ -59,7 +59,7 @@ export default function DataTable({
                 <tr key={`skeleton-${rowIndex}`} className="border-b border-line last:border-0">
                   {columns.map((col) => (
                     <td key={col.key} className="px-5 py-3.5">
-                      <div className="h-3.5 w-full max-w-40 animate-pulse rounded bg-slate-200" />
+                      <div className="h-3.5 w-full max-w-40 animate-pulse rounded bg-[#E8E4F3]" />
                     </td>
                   ))}
                 </tr>
@@ -83,7 +83,7 @@ export default function DataTable({
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                   className={cn(
                     "border-b border-line transition-colors last:border-0",
-                    onRowClick && "cursor-pointer hover:bg-slate-50"
+                    onRowClick && "cursor-pointer hover:bg-primary-50/70"
                   )}
                 >
                   {columns.map((col) => (

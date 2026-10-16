@@ -81,8 +81,6 @@ const COLUMNS = [
   "GST / Tax No.",
   "Subscription",
   "Status",
-  "Staff",
-  "Accountants",
   "Vendors",
   "Customers",
   "Invoices",
@@ -252,12 +250,6 @@ function CompanyRow({ company, busy, onStatus, onAssign, onDeletePending }) {
         <CompanyStatusBadge status={company.status} />
       </td>
       <td className="px-4 py-4 text-center">
-        <CountCell value={counts.staff} />
-      </td>
-      <td className="px-4 py-4 text-center">
-        <CountCell value={counts.accountants} />
-      </td>
-      <td className="px-4 py-4 text-center">
         <CountCell value={counts.vendors} />
       </td>
       <td className="px-4 py-4 text-center">
@@ -344,10 +336,8 @@ function CompanyCard({ company, busy, onStatus, onAssign, onDeletePending }) {
         </div>
       </div>
 
-      <div className="mt-3 grid grid-cols-5 gap-2">
-        {stat("Staff", counts.staff)}
-        {stat("Acc.", counts.accountants)}
-        {stat("Vendors", counts.vendors)}
+        <div className="mt-3 grid grid-cols-4 gap-2">
+          {stat("Vendors", counts.vendors)}
         {stat("Cust.", counts.customers)}
         {stat("Inv.", counts.invoices)}
       </div>

@@ -32,7 +32,7 @@ export default function InviteLinkModal({ invite, partyLabel = "customer", onClo
         </>
       }
     >
-      <div className="flex items-start gap-3 rounded-lg border border-line bg-slate-50 p-4">
+      <div className="flex items-start gap-3 rounded-lg border border-line bg-primary-50/60 p-4">
         <Link2 className="mt-0.5 h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
         <p className="break-all font-mono text-xs text-body select-all">{invite.link}</p>
       </div>

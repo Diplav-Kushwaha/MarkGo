@@ -5,10 +5,6 @@ import { generateRefreshTokenValue, hashRefreshToken } from "../utils/tokens.js"
 const SALT_ROUNDS = 12;
 const INVITE_TTL_MS = 48 * 60 * 60 * 1000; // 48 hours
 
-// Reuses the same random-token + sha256-hash primitive as refresh tokens
-// (generateRefreshTokenValue / hashRefreshToken) — same operation, just
-// applied to invites instead of sessions, so nothing new to audit here.
-
 export async function createInvite({ customerId }) {
   const rawToken = generateRefreshTokenValue();
   const tokenHash = hashRefreshToken(rawToken);
@@ -21,10 +17,6 @@ export async function createInvite({ customerId }) {
     },
   });
 
-  // TODO: send `rawToken` by email once a mailer (nodemailer/SES/Resend) is
-  // wired up. Until then, the raw link is returned in the API response so
-  // you can test the flow by hand:
-  //   `${process.env.APP_URL}/accept-invite?token=${rawToken}`
   return { rawToken };
 }
 
@@ -60,7 +52,7 @@ export async function verifyInviteToken({ token }) {
   }
 
   return {
-    email: invite.customer.email,
+    phoneNumber: invite.customer.phoneNumber,
     name: invite.customer.name,
     companyName: invite.customer.company?.name,
     companySlug: invite.customer.company?.slug,

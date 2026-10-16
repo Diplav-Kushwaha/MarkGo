@@ -13,7 +13,6 @@ const MAX_PRICE = 10_000_000;
 
 const limitFields = {
   maxUsers: z.number().int("Max users must be a whole number.").min(0).nullable().optional(),
-  maxStaff: z.number().int("Max staff must be a whole number.").min(0).nullable().optional(),
   maxCustomers: z.number().int("Max customers must be a whole number.").min(0).nullable().optional(),
   maxVendors: z.number().int("Max vendors must be a whole number.").min(0).nullable().optional(),
   maxInvoices: z.number().int("Max invoices must be a whole number.").min(0).nullable().optional(),

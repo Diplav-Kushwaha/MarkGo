@@ -190,7 +190,7 @@ export default function CompanyAdminVendor() {
       render: (row) => (
         <div>
           <div className="font-medium text-ink">{row.name}</div>
-          <div className="text-xs text-muted">{row.email}</div>
+          <div className="text-xs text-muted">{row.phoneNumber || "—"}</div>
         </div>
       ),
     },
@@ -387,6 +387,7 @@ export default function CompanyAdminVendor() {
           onSubmit={handleSubmit}
           onDelete={editing ? () => setPendingDelete(editing) : undefined}
           party={editing}
+          mode={editing ? "edit" : "add"}
           partyLabel="Vendor"
           nameLabel="Vendor / Company Name"
           addressLabel="Billing / Business Address"

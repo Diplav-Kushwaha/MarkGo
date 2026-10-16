@@ -76,16 +76,15 @@ export function paymentMethodLabel(value) {
 }
 
 /**
- * The five plan limits.
+ * The four plan limits.
  *
  * `key` is the form/body field name the API expects (maxUsers, …).
  * `dtoKey` is the SHORT name the API returns inside a plan's `limits` object
- * (users, staff, …) — reading `limits.maxUsers` always yields undefined, which
- * is why limits must be compared with `dtoKey`.
+ * (users, customers, …) — reading `limits.maxUsers` always yields undefined,
+ * which is why limits must be compared with `dtoKey`.
  */
 export const PLAN_LIMIT_ROWS = [
   { key: "maxUsers", dtoKey: "users", label: "Users" },
-  { key: "maxStaff", dtoKey: "staff", label: "Staff" },
   { key: "maxCustomers", dtoKey: "customers", label: "Customers" },
   { key: "maxVendors", dtoKey: "vendors", label: "Vendors" },
   { key: "maxInvoices", dtoKey: "invoices", label: "Invoices" },

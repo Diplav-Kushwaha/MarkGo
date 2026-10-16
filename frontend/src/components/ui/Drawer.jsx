@@ -42,16 +42,16 @@ export default function Drawer({
 
   return createPortal(
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} aria-hidden="true" />
+      <div className="absolute inset-0 bg-[#111A3A]/40 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
 
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
         className={cn(
-          "absolute inset-y-0 flex w-full flex-col bg-surface shadow-pop",
+          "absolute inset-y-0 flex w-full flex-col bg-white shadow-pop",
           side === "right" ? "right-0 border-l" : "left-0 border-r",
-          "border-line",
+          "border-line rounded-frame",
           WIDTHS[size] || WIDTHS.md,
           className
         )}
@@ -75,7 +75,7 @@ export default function Drawer({
         <div className="scrollbar-slim flex-1 overflow-y-auto px-6 py-5">{children}</div>
 
         {footer && (
-          <div className="flex items-center justify-end gap-2 border-t border-line bg-slate-50 px-6 py-3">
+          <div className="flex items-center justify-end gap-2 border-t border-line bg-primary-50/60 px-6 py-4">
             {footer}
           </div>
         )}

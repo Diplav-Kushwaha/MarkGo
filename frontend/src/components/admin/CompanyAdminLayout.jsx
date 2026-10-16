@@ -10,7 +10,7 @@ export default function CompanyAdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="min-h-screen bg-canvas">
+    <div className="min-h-screen bg-transparent">
       <AdminSidebar
         companyName={company?.name}
         collapsed={collapsed}
@@ -20,7 +20,7 @@ export default function CompanyAdminLayout() {
       <div className={cn("transition-[padding] duration-200", collapsed ? "pl-20" : "pl-64")}>
         <AdminHeader />
 
-        <main className="px-6 py-6">
+        <main className="px-4 py-6 sm:px-6 lg:px-8">
           <Outlet />
         </main>
       </div>

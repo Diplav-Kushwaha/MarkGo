@@ -18,25 +18,25 @@ const STATE_COPY = {
     title: "Your subscription has expired",
     body: (subscription) =>
       `It ended on ${formatDate(subscription?.endDate)}. Choose a plan to carry on, or start with Free.`,
-    tone: "border-red-200 bg-red-50 text-red-700",
+    tone: "border-danger-line bg-danger-soft text-red-800",
     Icon: AlertTriangle,
   },
   NO_SUBSCRIPTION: {
     title: "Choose a plan to continue",
     body: () => "Pick a paid plan, or start with Free and upgrade whenever you like.",
-    tone: "border-amber-200 bg-amber-50 text-amber-700",
+    tone: "border-warning-line bg-warning-soft text-amber-800",
     Icon: Info,
   },
   PAYMENT_PENDING: {
     title: "Your payment is pending.",
     body: () => "Complete the payment to activate your plan. Buying again replaces the pending one.",
-    tone: "border-amber-200 bg-amber-50 text-amber-700",
+    tone: "border-warning-line bg-warning-soft text-amber-800",
     Icon: Wallet,
   },
   COMPANY_INACTIVE: {
     title: "Your company is inactive. Please contact platform support.",
     body: () => "Buying or switching plans is unavailable while your company is inactive.",
-    tone: "border-amber-200 bg-amber-50 text-amber-700",
+    tone: "border-warning-line bg-warning-soft text-amber-800",
     Icon: AlertTriangle,
   },
   VALID: {
@@ -45,7 +45,7 @@ const STATE_COPY = {
       subscription?.endDate
         ? `It runs until ${formatDate(subscription.endDate)}.`
         : "Your plan never expires.",
-    tone: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    tone: "border-success-line bg-success-soft text-green-800",
     Icon: CheckCircle2,
   },
 };
@@ -207,12 +207,12 @@ export default function CompanySubscriptionRequired() {
   const showPlans = !loading && state !== "VALID" && !isInactive;
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-canvas">
+    <div className="min-h-[calc(100vh-4rem)] bg-transparent">
       <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
         {/* Brand + logout */}
         <div className="flex items-center justify-between gap-4">
           <span className="flex items-center gap-2.5">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-800 text-white">
+            <span className="flex h-10 w-10 items-center justify-center rounded-control bg-[#111A3A] text-white shadow-sm">
               <svg
                 viewBox="0 0 40 32"
                 fill="none"
@@ -235,7 +235,7 @@ export default function CompanySubscriptionRequired() {
               </svg>
             </span>
             <span className="text-xl font-bold tracking-tight text-ink">
-              Mark<span className="text-blue-800">Go</span>
+              Mark<span className="text-primary-700">Go</span>
             </span>
           </span>
 
@@ -260,16 +260,16 @@ export default function CompanySubscriptionRequired() {
 
           {loading ? (
             <div className="space-y-4">
-              <div className="h-20 w-full animate-pulse rounded-lg bg-slate-200" />
+              <div className="h-20 w-full animate-pulse rounded-card bg-[#E8E4F3]" />
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <div className="h-64 w-full animate-pulse rounded-lg bg-slate-200" />
-                <div className="h-64 w-full animate-pulse rounded-lg bg-slate-200" />
-                <div className="h-64 w-full animate-pulse rounded-lg bg-slate-200" />
+                <div className="h-64 w-full animate-pulse rounded-card bg-[#E8E4F3]" />
+                <div className="h-64 w-full animate-pulse rounded-card bg-[#E8E4F3]" />
+                <div className="h-64 w-full animate-pulse rounded-card bg-[#E8E4F3]" />
               </div>
             </div>
           ) : copy ? (
             <>
-              <div className={`flex items-start gap-3 rounded-lg border px-4 py-3 ${copy.tone}`}>
+              <div className={`flex items-start gap-3 rounded-tile border px-4 py-3 ${copy.tone}`}>
                 <copy.Icon
                   className={`mt-0.5 h-5 w-5 shrink-0 ${copy.tone.split(" ")[2]}`}
                   aria-hidden="true"
@@ -297,7 +297,7 @@ export default function CompanySubscriptionRequired() {
           {showPlans && (
             <>
               {plans.length === 0 ? (
-                <p className="rounded-lg border border-line bg-surface px-4 py-8 text-center text-sm text-body">
+                <p className="rounded-card border border-primary-100 bg-white px-4 py-8 text-center text-sm text-body">
                   No plans are available right now. Please try again later.
                 </p>
               ) : (

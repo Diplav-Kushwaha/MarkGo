@@ -12,7 +12,7 @@ import {
 } from "../controllers/superAdminSubscriptionController.js";
 import { authenticateToken, requireSuperAdmin } from "../middleware/authMiddleware.js";
 import { verifyCsrfToken } from "../middleware/csrf.js";
-import { validate, validateQuery } from "../middleware/validate.js";
+import { validate, validateParams, validateQuery } from "../middleware/validate.js";
 import {
   planIdParamSchema,
   companyIdParamSchema,
@@ -32,12 +32,12 @@ router.use(authenticateToken, requireSuperAdmin);
 
 router.get("/plans", listPlans);
 router.post("/plans", verifyCsrfToken, validate(createPlanSchema), createPlan);
-router.patch("/plans/:id", verifyCsrfToken, validate(planIdParamSchema), validate(updatePlanSchema), updatePlan);
+router.patch("/plans/:id", verifyCsrfToken, validateParams(planIdParamSchema, { status: 404, message: "Plan not found." }), validate(updatePlanSchema), updatePlan);
 
 router.patch(
   "/companies/:id/status",
   verifyCsrfToken,
-  validate(companyIdParamSchema),
+  validateParams(companyIdParamSchema, { status: 404, message: "Company not found." }),
   validate(companyStatusSchema),
   setCompanyStatus
 );
@@ -54,14 +54,14 @@ router.post(
 router.post(
   "/companies/:id/subscription",
   verifyCsrfToken,
-  validate(companyIdParamSchema),
+  validateParams(companyIdParamSchema, { status: 404, message: "Company not found." }),
   validate(assignSubscriptionSchema),
   assignSubscription
 );
 router.delete(
   "/companies/:id/pending",
   verifyCsrfToken,
-  validate(companyIdParamSchema),
+  validateParams(companyIdParamSchema, { status: 404, message: "Company not found." }),
   deletePendingCompany
 );
 

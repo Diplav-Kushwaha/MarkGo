@@ -13,12 +13,12 @@ import { authenticateToken, requireSuperAdmin } from "../middleware/authMiddlewa
 import { loginLimiter } from "../middleware/rateLimiter.js";
 import { verifyCsrfToken } from "../middleware/csrf.js";
 import { validate, validateQuery } from "../middleware/validate.js";
-import { loginSchema } from "../validators/authSchemas.js";
+import { superAdminLoginSchema } from "../validators/authSchemas.js";
 import { listSuperAdminCompaniesQuerySchema } from "../validators/superAdminValidators.js";
 
 const router = Router();
 
-router.post("/login", loginLimiter, verifyCsrfToken, validate(loginSchema), loginSuperAdmin);
+router.post("/login", loginLimiter, verifyCsrfToken, validate(superAdminLoginSchema), loginSuperAdmin);
 router.post("/logout", verifyCsrfToken, logoutSuperAdmin);
 router.get("/me", authenticateToken, requireSuperAdmin, getSuperAdminProfile);
 router.get(

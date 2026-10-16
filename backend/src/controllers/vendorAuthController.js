@@ -7,12 +7,16 @@ import {
   revokeVendorRefreshToken,
 } from "../services/vendorTokenService.js";
 import { getAccessCookieOptions, getRefreshCookieOptions } from "../utils/tokens.js";
+import { normalizePhone, INVALID_PHONE_MESSAGE } from "../utils/phone.js";
 
 const MAX_FAILED_ATTEMPTS = 5;
-const LOCK_DURATION_MS = 15 * 60 * 1000; // 15 minutes — same policy as customerAuthController.js
+const LOCK_DURATION_MS = 15 * 60 * 1000;
 
-// GET /api/vendor/verify-invite?token=
 export async function verifyInvite(req, res) {
+  if (typeof req.query?.token !== "string" || !req.query.token.trim()) {
+    return res.status(400).json({ success: false, message: "Invite token is required." });
+  }
+
   try {
     const invite = await vendorInviteService.verifyInviteToken({ token: req.query.token });
     return res.status(200).json({ success: true, data: invite });
@@ -22,14 +26,13 @@ export async function verifyInvite(req, res) {
   }
 }
 
-// POST /api/vendor/accept-invite
 export async function acceptInvite(req, res) {
   try {
     const vendor = await vendorInviteService.acceptInvite(req.body);
     return res.status(200).json({
       success: true,
       message: "Password set. You can now log in.",
-      data: { email: vendor.email },
+      data: { phoneNumber: vendor.phoneNumber },
     });
   } catch (err) {
     console.error("acceptInvite error:", err);
@@ -37,22 +40,24 @@ export async function acceptInvite(req, res) {
   }
 }
 
-// POST /api/vendor/login
 export async function loginVendor(req, res) {
-  const { companySlug, email, password } = req.body;
+  const { companySlug, phoneNumber, password } = req.body;
 
   try {
-    const company = await prisma.company.findUnique({ where: { slug: companySlug } });
+    const company = await prisma.company.findUnique({ where: { slug: companySlug.toLowerCase() } });
     if (!company) {
       return res.status(401).json({ success: false, message: "Invalid credentials." });
     }
 
+    const normalizedPhone = normalizePhone(phoneNumber);
+    if (!normalizedPhone) {
+      return res.status(400).json({ success: false, message: INVALID_PHONE_MESSAGE });
+    }
+
     const vendor = await prisma.vendor.findUnique({
-      where: { companyId_email: { companyId: company.id, email } },
+      where: { companyId_phoneNumber: { companyId: company.id, phoneNumber: normalizedPhone } },
     });
 
-    // No account, or invite never accepted (passwordHash still null) —
-    // same generic message either way so we don't leak which is true.
     if (!vendor || !vendor.passwordHash) {
       return res.status(401).json({ success: false, message: "Invalid credentials." });
     }
@@ -113,7 +118,7 @@ export async function loginVendor(req, res) {
         vendor: {
           id: vendor.id,
           name: vendor.name,
-          email: vendor.email,
+          phoneNumber: vendor.phoneNumber,
           companyId: vendor.companyId,
         },
       },
@@ -124,26 +129,37 @@ export async function loginVendor(req, res) {
   }
 }
 
-// POST /api/vendor/refresh
 export async function refreshVendorTokens(req, res) {
   try {
-    const rotated = await rotateVendorRefreshToken(req.cookies?.vendorRefreshToken, req);    res.cookie("vendorAccessToken", rotated.accessToken, getAccessCookieOptions());
+    const rotated = await rotateVendorRefreshToken(req.cookies?.vendorRefreshToken, req);
+
+    if (rotated?.error || !rotated?.accessToken || !rotated?.refreshCookieValue) {
+      res.clearCookie("vendorAccessToken", { ...getAccessCookieOptions(), maxAge: undefined });
+      res.clearCookie("vendorRefreshToken", { ...getRefreshCookieOptions(), maxAge: undefined });
+      const reused = rotated?.error === "reuse_detected";
+      return res.status(401).json({
+        success: false,
+        code: reused ? "REFRESH_TOKEN_REUSE_DETECTED" : "REFRESH_TOKEN_INVALID",
+        message: reused ? "Refresh token is no longer valid." : "Unable to refresh session.",
+      });
+    }
+
+    res.cookie("vendorAccessToken", rotated.accessToken, getAccessCookieOptions());
     res.cookie("vendorRefreshToken", rotated.refreshCookieValue, getRefreshCookieOptions());
     return res.status(200).json({ success: true, message: "Session refreshed." });
   } catch (err) {
     console.error("refreshVendorTokens error:", err);
     res.clearCookie("vendorAccessToken", { ...getAccessCookieOptions(), maxAge: undefined });
     res.clearCookie("vendorRefreshToken", { ...getRefreshCookieOptions(), maxAge: undefined });
-    return res.status(err.status || 401).json({ success: false, message: err.message || "Unable to refresh session." });
+    return res.status(401).json({ success: false, code: "REFRESH_FAILED", message: "Unable to refresh session." });
   }
 }
 
-// POST /api/vendor/logout
 export async function logoutVendor(req, res) {
   try {
     await revokeVendorRefreshToken(req.cookies?.vendorRefreshToken);
     res.clearCookie("vendorAccessToken", { ...getAccessCookieOptions(), maxAge: undefined });
-    res.clearCookie("vendorRefreshToken", { ...getRefreshCookieOptions(), maxAge: undefined });
+    res.clearCookie("vendorRefreshToken", { ...getAccessCookieOptions(), maxAge: undefined });
     return res.status(200).json({ success: true, message: "Logged out successfully." });
   } catch (err) {
     console.error("logoutVendor error:", err);
@@ -151,7 +167,6 @@ export async function logoutVendor(req, res) {
   }
 }
 
-// GET /api/vendor/me
 export async function getVendorProfile(req, res) {
   try {
     const vendor = await prisma.vendor.findUnique({

@@ -25,10 +25,10 @@ export const acceptCustomerInvite = async ({ token, password }) => {
  * Customer sign in
  * POST /api/customer/login
  */
-export const loginCustomer = async ({ companySlug, email, password }) => {
+export const loginCustomer = async ({ companySlug, phoneNumber, password }) => {
   const response = await axiosInstance.post("/api/customer/login", {
     companySlug,
-    email,
+    phoneNumber,
     password,
   });
   return response.data;

@@ -1,40 +1,65 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { LayoutDashboard, LogIn, LogOut, Menu, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Link, NavLink, useNavigate } from "react-router-dom";
+import { ChevronDown, LayoutDashboard, LogIn, LogOut, Menu, X } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { cn } from "../lib/cn";
+import { LOGIN_OPTIONS, MARKETING_LINKS, REGISTER_PATH } from "../lib/publicLinks";
 
 /**
  * Public marketing navbar.
  *
- * NOTE: the app currently has no marketing pages — the only public routes are
- * "/" and the login/invite screens below. So there is deliberately no centre nav
- * here yet: add the links to MARKETING_LINKS (and their routes) when those pages
- * are built, rather than linking to URLs that bounce off the catch-all.
+ * Signed out, it shows exactly four things: Home, About, a Login dropdown and
+ * Register. The dropdown lists one option per role that has a login route in
+ * App.jsx (Admin, Customer, Vendor) and reuses those routes unchanged.
+ * Signed in, the layout keeps the Dashboard / Logout buttons it always had.
+ *
+ * The logo, the emerald button styles, the sticky header and the mobile
+ * hamburger panel are all unchanged; only the signed-out items were replaced.
  */
-const MARKETING_LINKS = [];
 
-// Secondary portals. Grouped into one small text row instead of being spread
-// across the bar, since the primary CTA is the company admin login.
-const OTHER_LOGINS = [
-  { label: "Staff", to: "/staff/login" },
-  { label: "Accountant", to: "/accountant/login" },
-  { label: "Vendor", to: "/vendor/login" },
-  { label: "Customer", to: "/customer/login" },
-];
+/** Active style for the marketing links, matching the hover colour. */
+function marketingLinkClass({ isActive }) {
+  return cn(
+    "text-sm font-semibold transition-colors hover:text-primary-700",
+    isActive ? "text-primary-700" : "text-body"
+  );
+}
 
 export default function Navbar() {
   const { isAuthenticated, role, user, logout } = useAuth();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [loginMenuOpen, setLoginMenuOpen] = useState(false);
+  const [mobileLoginOpen, setMobileLoginOpen] = useState(false);
+  const loginMenuRef = useRef(null);
 
-  // Hide the navbar when a Company Admin, Customer, Vendor, Staff, or Accountant is logged in
+  // Close the Login dropdown on an outside click and on Escape.
+  useEffect(() => {
+    if (!loginMenuOpen) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (loginMenuRef.current && !loginMenuRef.current.contains(event.target)) {
+        setLoginMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setLoginMenuOpen(false);
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [loginMenuOpen]);
+
+  // Hide the navbar when a Company Admin, Customer, or Vendor is logged in
   if (
     isAuthenticated &&
     (role === "COMPANY_ADMIN" ||
       role === "CUSTOMER" ||
-      role === "VENDOR" ||
-      role === "STAFF" ||
-      role === "ACCOUNTANT")
+      role === "VENDOR")
   ) {
     return null;
   }
@@ -51,21 +76,20 @@ export default function Navbar() {
       ? "/customer/dashboard"
       : role === "VENDOR"
       ? "/vendor/dashboard"
-      : role === "STAFF"
-      ? "/staff/dashboard"
-      : role === "ACCOUNTANT"
-      ? "/accountant/dashboard"
       : "/admin/dashboard";
 
-  const closeMobile = () => setMobileMenuOpen(false);
+  const closeMobile = () => {
+    setMobileMenuOpen(false);
+    setMobileLoginOpen(false);
+  };
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-200 bg-white">
-      <div className="mx-auto max-w-7xl px-6">
+    <header className="sticky top-0 z-50 px-4 pt-3">
+      <div className="mx-auto max-w-7xl rounded-card border border-white/80 bg-white/80 px-4 shadow-card backdrop-blur-xl sm:px-6">
         <div className="flex h-16 items-center justify-between gap-6">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2.5" onClick={closeMobile}>
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600 text-white">
+            <span className="flex h-9 w-9 items-center justify-center rounded-control bg-[#111A3A] text-white shadow-sm">
               <svg
                 viewBox="0 0 40 32"
                 fill="none"
@@ -87,66 +111,91 @@ export default function Navbar() {
                 />
               </svg>
             </span>
-            <span className="text-lg font-bold tracking-tight text-slate-900">
-              MARK<span className="text-emerald-600">GO</span>
+            <span className="text-lg font-bold tracking-tight text-ink">
+              MARK<span className="text-primary-700">GO</span>
             </span>
           </Link>
 
-          {/* Marketing links — empty until those pages exist */}
-          {MARKETING_LINKS.length > 0 && (
-            <nav className="hidden items-center gap-6 lg:flex" aria-label="Main">
-              {MARKETING_LINKS.map((link) => (
-                <Link
-                  key={link.to}
-                  to={link.to}
-                  className="text-sm font-medium text-slate-600 transition-colors hover:text-emerald-600"
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </nav>
-          )}
+          {/* Public pages */}
+          <nav className="hidden items-center gap-6 md:flex" aria-label="Main">
+            {MARKETING_LINKS.map((link) => (
+              <NavLink
+                key={link.to}
+                to={link.to}
+                // "/" must not stay active on every other route.
+                end={link.to === "/"}
+                className={marketingLinkClass}
+              >
+                {link.label}
+              </NavLink>
+            ))}
+          </nav>
 
-          <div className="ml-auto flex items-center gap-6">
+          <div className="ml-auto flex items-center gap-3">
             {!isAuthenticated ? (
               <>
-                {/* Secondary portals, grouped as one small text row */}
-                <div className="hidden items-center text-xs text-slate-500 md:flex">
-                  {OTHER_LOGINS.map((link, index) => (
-                    <span key={link.to} className="flex items-center">
-                      {index > 0 && <span className="px-2 text-slate-300">·</span>}
-                      <Link
-                        to={link.to}
-                        className="font-medium transition-colors hover:text-emerald-600"
-                      >
-                        {link.label}
-                      </Link>
-                    </span>
-                  ))}
+                {/* Login dropdown */}
+                <div className="relative hidden md:block" ref={loginMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setLoginMenuOpen((open) => !open)}
+                    aria-expanded={loginMenuOpen}
+                    aria-haspopup="menu"
+                    aria-controls="login-menu"
+                    className="inline-flex min-h-10 items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-ink transition-colors hover:bg-primary-50 hover:text-primary-800"
+                  >
+                    <LogIn className="h-4 w-4" aria-hidden="true" />
+                    Login
+                    <ChevronDown
+                      className={cn("h-4 w-4 transition-transform", loginMenuOpen && "rotate-180")}
+                      aria-hidden="true"
+                    />
+                  </button>
+
+                  {loginMenuOpen && (
+                    <div
+                      id="login-menu"
+                      role="menu"
+                      aria-label="Choose how to sign in"
+                      className="absolute right-0 mt-2 w-56 overflow-hidden rounded-card border border-primary-100 bg-white py-1 shadow-pop"
+                    >
+                      {LOGIN_OPTIONS.map((option) => (
+                        <Link
+                          key={option.to}
+                          to={option.to}
+                          role="menuitem"
+                          // Choosing an option closes the dropdown.
+                          onClick={() => setLoginMenuOpen(false)}
+                          className="block px-4 py-3 text-sm font-medium text-body transition-colors hover:bg-primary-50 hover:text-primary-800 focus:bg-primary-50 focus:text-primary-800 focus:outline-none"
+                        >
+                          {option.label}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <Link
-                  to="/admin/login"
-                  className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+                  to={REGISTER_PATH}
+                  className="hidden min-h-10 items-center gap-2 rounded-control bg-[#111A3A] px-5 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#1B2550] sm:inline-flex"
                 >
-                  <LogIn className="h-4 w-4" aria-hidden="true" />
-                  Admin Login
+                  Register
                 </Link>
               </>
             ) : (
               <>
                 <div className="hidden items-center gap-3 md:flex">
-                  <span className="max-w-[180px] truncate text-sm text-slate-700">
-                    {user?.email}
+                  <span className="max-w-[180px] truncate text-sm text-body">
+                    {user?.email || user?.phoneNumber || "—"}
                   </span>
-                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
+                  <span className="rounded-full bg-primary-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-primary-800">
                     {role}
                   </span>
                 </div>
 
                 <Link
                   to={dashboardPath}
-                  className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:border-emerald-600 hover:text-emerald-700"
+                  className="inline-flex min-h-10 items-center gap-2 rounded-control border border-line bg-white px-4 py-2 text-sm font-semibold text-ink transition-colors hover:border-primary-300 hover:bg-primary-50 hover:text-primary-800"
                 >
                   <LayoutDashboard className="h-4 w-4" aria-hidden="true" />
                   Dashboard
@@ -157,7 +206,7 @@ export default function Navbar() {
                   onClick={handleLogout}
                   title="Logout"
                   aria-label="Logout"
-                  className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-red-600"
+                  className="rounded-control p-2.5 text-muted transition-colors hover:bg-danger-soft hover:text-danger"
                 >
                   <LogOut className="h-5 w-5" aria-hidden="true" />
                 </button>
@@ -170,7 +219,7 @@ export default function Navbar() {
               onClick={() => setMobileMenuOpen((open) => !open)}
               aria-expanded={mobileMenuOpen}
               aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
-              className="rounded-lg p-2 text-slate-600 transition-colors hover:bg-slate-100 lg:hidden"
+              className="rounded-control p-2.5 text-body transition-colors hover:bg-primary-50 md:hidden"
             >
               {mobileMenuOpen ? (
                 <X className="h-6 w-6" aria-hidden="true" />
@@ -183,34 +232,42 @@ export default function Navbar() {
 
         {/* Mobile menu — only real routes */}
         {mobileMenuOpen && (
-          <div className="border-t border-slate-200 py-4 lg:hidden">
-            {MARKETING_LINKS.length > 0 && (
-              <nav className="mb-4 flex flex-col" aria-label="Main">
-                {MARKETING_LINKS.map((link) => (
-                  <Link
-                    key={link.to}
-                    to={link.to}
-                    onClick={closeMobile}
-                    className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 hover:text-emerald-600"
-                  >
-                    {link.label}
-                  </Link>
-                ))}
-              </nav>
-            )}
+          <div className="border-t border-line py-4 md:hidden">
+            <nav className="mb-2 flex flex-col" aria-label="Main">
+              {MARKETING_LINKS.map((link) => (
+                <NavLink
+                  key={link.to}
+                  to={link.to}
+                  end={link.to === "/"}
+                  onClick={closeMobile}
+                  className={({ isActive }) =>
+                    cn(
+                      "rounded-control px-3 py-2.5 text-sm font-medium transition-colors",
+                      isActive
+                        ? "bg-primary-100 text-primary-800"
+                        : "text-body hover:bg-primary-50 hover:text-primary-700"
+                    )
+                  }
+                >
+                  {link.label}
+                </NavLink>
+              ))}
+            </nav>
 
             {isAuthenticated ? (
               <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-3 px-3">
-                  <span className="truncate text-sm text-slate-700">{user?.email}</span>
-                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
+                  <span className="truncate text-sm text-body">
+                    {user?.email || user?.phoneNumber || "—"}
+                  </span>
+                  <span className="rounded-full bg-primary-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-primary-800">
                     {role}
                   </span>
                 </div>
                 <Link
                   to={dashboardPath}
                   onClick={closeMobile}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700"
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-control border border-line bg-white px-4 py-2 text-sm font-semibold text-ink"
                 >
                   <LayoutDashboard className="h-4 w-4" aria-hidden="true" />
                   Dashboard
@@ -218,7 +275,7 @@ export default function Navbar() {
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-control px-4 py-2 text-sm font-semibold text-danger transition-colors hover:bg-danger-soft"
                 >
                   <LogOut className="h-4 w-4" aria-hidden="true" />
                   Logout
@@ -226,23 +283,46 @@ export default function Navbar() {
               </div>
             ) : (
               <div className="flex flex-col">
-                <Link
-                  to="/admin/login"
-                  onClick={closeMobile}
-                  className="rounded-lg bg-emerald-600 px-3 py-2 text-center text-sm font-semibold text-white"
+                {/* Login, as an expandable group so every option fits on a phone */}
+                <button
+                  type="button"
+                  onClick={() => setMobileLoginOpen((open) => !open)}
+                  aria-expanded={mobileLoginOpen}
+                  aria-controls="mobile-login-options"
+                  className="flex min-h-10 w-full items-center justify-between rounded-control px-3 py-2 text-sm font-semibold text-ink transition-colors hover:bg-primary-50"
                 >
-                  Admin Login
+                  <span className="inline-flex items-center gap-2">
+                    <LogIn className="h-4 w-4" aria-hidden="true" />
+                    Login
+                  </span>
+                  <ChevronDown
+                    className={cn("h-4 w-4 transition-transform", mobileLoginOpen && "rotate-180")}
+                    aria-hidden="true"
+                  />
+                </button>
+
+                {mobileLoginOpen && (
+                  <div id="mobile-login-options" className="mt-1 flex flex-col gap-1 rounded-tile bg-primary-50/70 p-2 pl-4">
+                    {LOGIN_OPTIONS.map((option) => (
+                      <Link
+                        key={option.to}
+                        to={option.to}
+                        onClick={closeMobile}
+                        className="rounded-control px-3 py-2.5 text-sm font-medium text-body transition-colors hover:bg-white hover:text-primary-700"
+                      >
+                        {option.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+
+                <Link
+                  to={REGISTER_PATH}
+                  onClick={closeMobile}
+                  className="mt-3 inline-flex min-h-11 items-center justify-center rounded-control bg-[#111A3A] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#1B2550]"
+                >
+                  Register
                 </Link>
-                {OTHER_LOGINS.map((link) => (
-                  <Link
-                    key={link.to}
-                    to={link.to}
-                    onClick={closeMobile}
-                    className="rounded-lg px-3 py-2 text-center text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-emerald-600"
-                  >
-                    {link.label}
-                  </Link>
-                ))}
               </div>
             )}
           </div>

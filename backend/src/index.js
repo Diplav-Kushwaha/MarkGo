@@ -11,13 +11,14 @@ import tokenRoutes from "./routes/tokenRoutes.js";
 import csrfRoutes from "./routes/csrfRoutes.js";
 import companyAdminCustomerRoutes from "./routes/companyAdminCustomerRoutes.js";
 import customerAuthRoutes from "./routes/customerAuthRoutes.js";
+import customerDashboardRoutes from "./routes/customerDashboardRoutes.js";
 import companyAdminVendorRoutes from "./routes/companyAdminVendorRoutes.js";
 import vendorAuthRoutes from "./routes/vendorAuthRoutes.js";
-import companyAdminStaffRoutes from "./routes/companyAdminStaffRoutes.js";
-import staffAuthRoutes from "./routes/staffAuthRoutes.js";
-import companyAdminAccountantRoutes from "./routes/companyAdminAccountantRoutes.js";
-import accountantAuthRoutes from "./routes/accountantAuthRoutes.js";
+import vendorDashboardRoutes from "./routes/vendorDashboardRoutes.js";
 import companyAdminItemRoutes from "./routes/companyAdminItemRoutes.js";
+import companyAdminServiceRoutes from "./routes/companyAdminServiceRoutes.js";
+import companyAdminUnitRoutes from "./routes/companyAdminUnitRoutes.js";
+import companyAdminCategoryRoutes from "./routes/companyAdminCategoryRoutes.js";
 import companyAdminInvoiceRoutes from "./routes/companyAdminInvoiceRoutes.js";
 import companyAdminBillRoutes from "./routes/companyAdminBillRoutes.js";
 import companyAdminPaymentRoutes from "./routes/companyAdminPaymentRoutes.js";
@@ -27,6 +28,7 @@ import companyAdminReportRoutes from "./routes/companyAdminReportRoutes.js";
 import companyAdminSubscriptionRoutes from "./routes/companyAdminSubscriptionRoutes.js";
 import planRoutes from "./routes/planRoutes.js";
 import subscriptionPaymentRoutes from "./routes/subscriptionPaymentRoutes.js";
+import { isDummyPayment } from "./config/subscription.js";
 
 
 const requiredEnvVars = ["DATABASE_URL", "JWT_ACCESS_SECRET", "APP_URL", "CORS_ORIGIN"];
@@ -76,13 +78,27 @@ app.use("/api/superadmin", superAdminSubscriptionRoutes);
 app.use("/api/admin", companyAdminRoutes);
 app.use("/api/admin/customers", companyAdminCustomerRoutes);
 app.use("/api/customer", customerAuthRoutes);
+// Customer dashboard routes (read-only) share the /api/customer prefix. Mounted
+// after the auth router so /login, /refresh, /logout, /me, /verify-invite and
+// /accept-invite keep resolving on customerAuthRoutes first; this router's
+// paths (/profile, /invoices, /products, /services, /purchased-products) do not
+// overlap those. Every route here requires a CUSTOMER token.
+app.use("/api/customer", customerDashboardRoutes);
 app.use("/api/admin/vendors", companyAdminVendorRoutes);
 app.use("/api/vendor", vendorAuthRoutes);
-app.use("/api/admin/staff", companyAdminStaffRoutes);
-app.use("/api/staff", staffAuthRoutes);
-app.use("/api/admin/accountants", companyAdminAccountantRoutes);
-app.use("/api/accountant", accountantAuthRoutes);
+// Vendor dashboard routes (read-only) share the /api/vendor prefix. Mounted
+// after the auth router so /login, /refresh, /logout, /me and /verify-invite
+// keep resolving on vendorAuthRoutes first; this router's paths (/profile,
+// /sold-products, /bills, /bills/:id, /products, /services) do not overlap
+// those. Every route here requires a VENDOR token.
+app.use("/api/vendor", vendorDashboardRoutes);
 app.use("/api/admin/items", companyAdminItemRoutes); 
+// Service-only routes that have no place on the shared item router (today: the
+// company-wide services summary). The service CRUD endpoints stay on
+// /api/admin/items, dispatched there by the declared `type`.
+app.use("/api/admin/services", companyAdminServiceRoutes);
+app.use("/api/admin/units", companyAdminUnitRoutes);
+app.use("/api/admin/categories", companyAdminCategoryRoutes);
 app.use("/api/admin/invoices", companyAdminInvoiceRoutes);
 app.use("/api/admin/bills", companyAdminBillRoutes);
 app.use("/api/admin/payments", companyAdminPaymentRoutes);
@@ -93,7 +109,7 @@ app.use("/api/admin/subscription", companyAdminSubscriptionRoutes);
  
 
 app.use((req, res) => {
-  res.status(404).json({ success: false, message: `Route not found: ${req.method} ${req.originalUrl}` });
+  res.status(404).json({ success: false, message: "Route not found." });
 });
 
 app.use((err, req, res, next) => {
@@ -105,14 +121,23 @@ app.use((err, req, res, next) => {
   if (err.message && err.message.startsWith("Origin ")) {
     return res.status(403).json({ success: false, message: "Not allowed by CORS." });
   }
-  res.status(err.status || 500).json({
+  const status = err.status || 500;
+  const knownClientError = Number(status) < 500;
+  const explicitlyExposed = err.expose === true;
+  res.status(status).json({
     success: false,
-    message: err.message || "Internal server error.",
+    message: (knownClientError || explicitlyExposed) && err.message
+      ? err.message
+      : "Something went wrong. Please try again.",
   });
 });
 
 async function start() {
   try {
+    if (process.env.NODE_ENV === "production" && isDummyPayment) {
+      console.error("!!! WARNING: DUMMY PAYMENTS ARE ENABLED IN PRODUCTION. Public payment confirmation is not a real payment processor. !!!");
+    }
+
     await prisma.$connect();
     console.log("[db] Connected to MySQL via Prisma.");
 

@@ -3,12 +3,16 @@ import prisma from "../prisma.js";
 import * as customerInviteService from "../services/customerInviteService.js";
 import { issueCustomerTokenPair, rotateCustomerRefreshToken, revokeCustomerRefreshToken } from "../services/customerTokenService.js";
 import { getAccessCookieOptions, getRefreshCookieOptions } from "../utils/tokens.js";
+import { normalizePhone, INVALID_PHONE_MESSAGE } from "../utils/phone.js";
 
 const MAX_FAILED_ATTEMPTS = 5;
-const LOCK_DURATION_MS = 15 * 60 * 1000; // 15 minutes — same policy as companyAdminAuthController.js
+const LOCK_DURATION_MS = 15 * 60 * 1000;
 
-// GET /api/customer/verify-invite?token=
 export async function verifyInvite(req, res) {
+  if (typeof req.query?.token !== "string" || !req.query.token.trim()) {
+    return res.status(400).json({ success: false, message: "Invite token is required." });
+  }
+
   try {
     const invite = await customerInviteService.verifyInviteToken({ token: req.query.token });
     return res.status(200).json({ success: true, data: invite });
@@ -18,14 +22,13 @@ export async function verifyInvite(req, res) {
   }
 }
 
-// POST /api/customer/accept-invite
 export async function acceptInvite(req, res) {
   try {
     const customer = await customerInviteService.acceptInvite(req.body);
     return res.status(200).json({
       success: true,
       message: "Password set. You can now log in.",
-      data: { email: customer.email },
+      data: { phoneNumber: customer.phoneNumber },
     });
   } catch (err) {
     console.error("acceptInvite error:", err);
@@ -33,22 +36,24 @@ export async function acceptInvite(req, res) {
   }
 }
 
-// POST /api/customer/login
 export async function loginCustomer(req, res) {
-  const { companySlug, email, password } = req.body;
+  const { companySlug, phoneNumber, password } = req.body;
 
   try {
-    const company = await prisma.company.findUnique({ where: { slug: companySlug } });
+    const company = await prisma.company.findUnique({ where: { slug: companySlug.toLowerCase() } });
     if (!company) {
       return res.status(401).json({ success: false, message: "Invalid credentials." });
     }
 
+    const normalizedPhone = normalizePhone(phoneNumber);
+    if (!normalizedPhone) {
+      return res.status(400).json({ success: false, message: INVALID_PHONE_MESSAGE });
+    }
+
     const customer = await prisma.customer.findUnique({
-      where: { companyId_email: { companyId: company.id, email } },
+      where: { companyId_phoneNumber: { companyId: company.id, phoneNumber: normalizedPhone } },
     });
 
-    // No account, or invite never accepted (passwordHash still null) —
-    // same generic message either way so we don't leak which is true.
     if (!customer || !customer.passwordHash) {
       return res.status(401).json({ success: false, message: "Invalid credentials." });
     }
@@ -109,7 +114,7 @@ export async function loginCustomer(req, res) {
         customer: {
           id: customer.id,
           name: customer.name,
-          email: customer.email,
+          phoneNumber: customer.phoneNumber,
           companyId: customer.companyId,
         },
       },
@@ -120,10 +125,21 @@ export async function loginCustomer(req, res) {
   }
 }
 
-// POST /api/customer/refresh
 export async function refreshCustomerTokens(req, res) {
   try {
     const rotated = await rotateCustomerRefreshToken(req.cookies?.customerRefreshToken, req);
+
+    if (rotated?.error || !rotated?.accessToken || !rotated?.refreshCookieValue) {
+      res.clearCookie("customerAccessToken", { ...getAccessCookieOptions(), maxAge: undefined });
+      res.clearCookie("customerRefreshToken", { ...getRefreshCookieOptions(), maxAge: undefined });
+      const reused = rotated?.error === "reuse_detected";
+      return res.status(401).json({
+        success: false,
+        code: reused ? "REFRESH_TOKEN_REUSE_DETECTED" : "REFRESH_TOKEN_INVALID",
+        message: reused ? "Refresh token is no longer valid." : "Unable to refresh session.",
+      });
+    }
+
     res.cookie("customerAccessToken", rotated.accessToken, getAccessCookieOptions());
     res.cookie("customerRefreshToken", rotated.refreshCookieValue, getRefreshCookieOptions());
     return res.status(200).json({ success: true, message: "Session refreshed." });
@@ -131,12 +147,12 @@ export async function refreshCustomerTokens(req, res) {
     console.error("refreshCustomerTokens error:", err);
     res.clearCookie("customerAccessToken", { ...getAccessCookieOptions(), maxAge: undefined });
     res.clearCookie("customerRefreshToken", { ...getRefreshCookieOptions(), maxAge: undefined });
-    return res.status(err.status || 401).json({ success: false, message: err.message || "Unable to refresh session." });
+    return res.status(401).json({ success: false, code: "REFRESH_FAILED", message: "Unable to refresh session." });
   }
 }
 
-// POST /api/customer/logout
-export async function logoutCustomer(req, res) {  try {
+export async function logoutCustomer(req, res) {
+  try {
     await revokeCustomerRefreshToken(req.cookies?.customerRefreshToken);
     res.clearCookie("customerAccessToken", { ...getAccessCookieOptions(), maxAge: undefined });
     res.clearCookie("customerRefreshToken", { ...getRefreshCookieOptions(), maxAge: undefined });
@@ -147,7 +163,6 @@ export async function logoutCustomer(req, res) {  try {
   }
 }
 
-// GET /api/customer/me
 export async function getCustomerProfile(req, res) {
   try {
     const customer = await prisma.customer.findUnique({

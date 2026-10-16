@@ -6,10 +6,10 @@ import { useState } from "react";
  * input, label, error and alert styling. Presentational only.
  */
 
-const LABEL = "block text-sm font-medium text-slate-700";
+const LABEL = "block text-sm font-semibold text-ink";
 const CONTROL_BASE =
-  "block w-full rounded-xl border bg-white py-2.5 text-sm text-slate-900 shadow-sm transition " +
-  "placeholder:text-slate-400 focus:outline-none focus:ring-4 disabled:cursor-not-allowed disabled:bg-slate-50";
+  "block h-11 w-full rounded-control border bg-white py-2.5 text-sm text-ink shadow-sm transition-all duration-150 " +
+  "placeholder:text-muted focus:outline-none focus:ring-4 disabled:cursor-not-allowed disabled:bg-muted-soft";
 
 /** `trailing` reserves room for a right-hand control such as the password toggle. */
 function controlClass({ invalid, leading = true, trailing = true }) {
@@ -19,7 +19,7 @@ function controlClass({ invalid, leading = true, trailing = true }) {
     trailing ? "pr-11" : "pr-4",
     invalid
       ? "border-red-400 focus:border-red-500 focus:ring-red-100"
-      : "border-slate-300 focus:border-blue-800 focus:ring-blue-100",
+      : "border-line focus:border-primary-500 focus:ring-primary-500/20",
   ].join(" ");
 }
 
@@ -35,7 +35,7 @@ export function FieldError({ id, message }) {
 
 export function FieldHint({ children }) {
   if (!children) return null;
-  return <p className="mt-1.5 text-xs text-slate-400">{children}</p>;
+  return <p className="mt-1.5 text-xs text-muted">{children}</p>;
 }
 
 /**
@@ -70,7 +70,7 @@ export default function AuthField({
       <div className="relative mt-1.5">
         {Icon && (
           <Icon
-            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
             aria-hidden="true"
           />
         )}
@@ -96,7 +96,7 @@ export default function AuthField({
         )}
       </div>
       {hint && !hasError && (
-        <p id={`${id}-hint`} className="mt-1.5 text-xs text-slate-400">
+        <p id={`${id}-hint`} className="mt-1.5 text-xs text-muted">
           {hint}
         </p>
       )}
@@ -163,7 +163,7 @@ export function AuthPasswordField({
           onClick={() => setVisible((prev) => !prev)}
           disabled={disabled}
           aria-label={visible ? "Hide password" : "Show password"}
-          className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 disabled:opacity-50"
+          className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-control text-muted transition-colors hover:bg-primary-50 hover:text-ink disabled:opacity-50"
         >
           {visible ? (
             <EyeOff className="h-4 w-4" aria-hidden="true" />
@@ -174,7 +174,7 @@ export function AuthPasswordField({
       </div>
 
       {hint && !hasError && (
-        <p id={`${id}-hint`} className="mt-1.5 text-xs text-slate-400">
+        <p id={`${id}-hint`} className="mt-1.5 text-xs text-muted">
           {hint}
         </p>
       )}
@@ -189,8 +189,8 @@ export function AuthAlert({ message, tone = "error" }) {
 
   const styles =
     tone === "success"
-      ? "border-green-200 bg-green-50 text-green-700"
-      : "border-red-200 bg-red-50 text-red-600";
+      ? "border-success-line bg-success-soft text-green-800"
+      : "border-danger-line bg-danger-soft text-red-800";
 
   const Icon = tone === "success" ? CheckCircle2 : AlertCircle;
 
@@ -208,7 +208,7 @@ export function AuthAlert({ message, tone = "error" }) {
 /** Small uppercase section heading for the wider registration form. */
 export function AuthSectionHeading({ children }) {
   return (
-    <h3 className="border-b border-slate-200 pb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+    <h3 className="border-b border-line pb-2 text-xs font-bold uppercase tracking-wider text-muted">
       {children}
     </h3>
   );

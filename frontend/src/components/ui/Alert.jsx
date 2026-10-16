@@ -3,15 +3,15 @@ import { cn } from "../../lib/cn";
 
 const TONES = {
   error: {
-    wrap: "border-danger-line bg-danger-soft text-red-700",
+    wrap: "border-danger-line bg-danger-soft text-red-800",
     Icon: AlertCircle,
   },
   success: {
-    wrap: "border-success-line bg-success-soft text-green-700",
+    wrap: "border-success-line bg-success-soft text-green-800",
     Icon: CheckCircle2,
   },
   info: {
-    wrap: "border-info-line bg-info-soft text-sky-800",
+    wrap: "border-info-line bg-info-soft text-blue-800",
     Icon: Info,
   },
 };
@@ -20,7 +20,7 @@ export default function Alert({ tone = "error", title, children, className }) {
   const { wrap, Icon } = TONES[tone] || TONES.error;
 
   return (
-    <div role="alert" className={cn("flex gap-3 rounded-lg border px-4 py-3", wrap, className)}>
+    <div role="alert" className={cn("flex gap-3 rounded-tile border px-4 py-3", wrap, className)}>
       <Icon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
       <div className="min-w-0 text-sm">
         {title && <p className="font-medium">{title}</p>}

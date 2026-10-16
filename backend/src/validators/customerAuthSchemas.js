@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-// Same complexity rules as passwordSchema in authSchemas.js.
+const phoneRegex = /^\d{10}$/;
+
 const passwordSchema = z
   .string()
   .min(8, "Password must be at least 8 characters.")
@@ -16,10 +17,8 @@ export const acceptInviteSchema = z.object({
 });
 
 export const customerLoginSchema = z.object({
-  // Required because Customer.email is unique per company, not globally —
-  // login has to know which company's Customer row to check.
   companySlug: z.string().trim().toLowerCase().min(1, "Company is required."),
-  email: z.string().trim().toLowerCase().email("Enter a valid email address.").max(254),
+  phoneNumber: z.string().trim().regex(phoneRegex, "Phone number must be exactly 10 digits."),
   password: z.string().min(1, "Password is required.").max(128),
 });
 

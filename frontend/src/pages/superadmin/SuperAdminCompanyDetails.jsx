@@ -5,8 +5,6 @@ import {
   Building2,
   TrendingDown,
   TrendingUp,
-  UserCog,
-  Users,
   Wallet,
 } from "lucide-react";
 import { getSuperAdminCompanyDetails } from "../../api/superAdminAuthApi";
@@ -34,6 +32,7 @@ import {
   SAStatCardSkeleton,
   SATone,
 } from "../../components/superadmin/SuperAdminUi";
+import "./superadmin-theme.css";
 
 /** Label + value pair, used in the company info grid. */
 function InfoRow({ label, value, mono = false }) {
@@ -56,7 +55,7 @@ function MetricCard({ label, value, hint, icon: Icon, tone = "slate", signed = f
     slate: "bg-slate-100 text-slate-600",
     emerald: "bg-emerald-50 text-emerald-600",
     red: "bg-red-50 text-red-600",
-    blue: "bg-blue-50 text-blue-800",
+    blue: "bg-primary-50 text-primary-700",
   };
 
   return (
@@ -174,7 +173,7 @@ export default function SuperAdminCompanyDetails() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="sa-theme space-y-6">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((i) => (
             <SAStatCardSkeleton key={i} />
@@ -189,7 +188,7 @@ export default function SuperAdminCompanyDetails() {
 
   if (error || !data) {
     return (
-      <div className="space-y-4">
+      <div className="sa-theme space-y-4">
         <Link
           to="/superadmin/dashboard"
           className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 transition-colors hover:text-blue-800"
@@ -207,7 +206,7 @@ export default function SuperAdminCompanyDetails() {
   const location = [company.city, company.country].filter(Boolean).join(", ");
 
   return (
-    <div className="space-y-6">
+    <div className="sa-theme space-y-6">
       <Link
         to="/superadmin/dashboard"
         className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 transition-colors hover:text-blue-800"
@@ -286,22 +285,8 @@ export default function SuperAdminCompanyDetails() {
         />
       </div>
 
-      {/* 3. Headcount — same figures the Companies list shows */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <MetricCard
-          label="Total staff"
-          value={formatCount(counts.staff)}
-          hint="Company staff members"
-          icon={Users}
-          tone="blue"
-        />
-        <MetricCard
-          label="Total accountants"
-          value={formatCount(counts.accountants)}
-          hint="Bookkeepers and CPAs"
-          icon={UserCog}
-          tone="blue"
-        />
+      {/* 2. Headcount — same figures the Companies list shows */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-2">
         <MetricCard
           label="Total customers"
           value={formatCount(counts.customers)}

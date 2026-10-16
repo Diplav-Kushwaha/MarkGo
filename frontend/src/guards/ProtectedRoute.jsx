@@ -1,4 +1,3 @@
-import React from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import LoadingScreen from "../components/LoadingScreen";
@@ -20,10 +19,6 @@ export default function ProtectedRoute() {
       fallbackPath = "/customer/login";
     } else if (location.pathname.startsWith("/vendor")) {
       fallbackPath = "/vendor/login";
-    } else if (location.pathname.startsWith("/staff")) {
-      fallbackPath = "/staff/login";
-    } else if (location.pathname.startsWith("/accountant")) {
-      fallbackPath = "/accountant/login";
     }
 
     return <Navigate to={fallbackPath} state={{ from: location }} replace />;

@@ -66,7 +66,7 @@ export default function ProductServicePickerField({ type, value, onChange, disab
                     setOpen(false);
                     setSearch("");
                   }}
-                  className="flex w-full flex-col gap-0.5 border-b border-line px-4 py-2.5 text-left last:border-0 hover:bg-slate-50"
+                  className="flex w-full flex-col gap-0.5 border-b border-line px-4 py-2.5 text-left last:border-0 hover:bg-primary-50"
                 >
                   <span className="text-sm font-medium text-ink">{item.name}</span>
                   <span className="text-xs text-muted">

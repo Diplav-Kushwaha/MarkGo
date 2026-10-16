@@ -40,7 +40,6 @@ const EMPTY_FORM = {
   price: "",
   durationMonths: "",
   maxUsers: "",
-  maxStaff: "",
   maxCustomers: "",
   maxVendors: "",
   maxInvoices: "",
@@ -213,7 +212,6 @@ export default function SuperAdminPlans() {
           ? ""
           : String(plan.durationMonths),
       maxUsers: isUnlimited(plan.limits?.users) ? "" : String(plan.limits.users),
-      maxStaff: isUnlimited(plan.limits?.staff) ? "" : String(plan.limits.staff),
       maxCustomers: isUnlimited(plan.limits?.customers) ? "" : String(plan.limits.customers),
       maxVendors: isUnlimited(plan.limits?.vendors) ? "" : String(plan.limits.vendors),
       maxInvoices: isUnlimited(plan.limits?.invoices) ? "" : String(plan.limits.invoices),
@@ -265,7 +263,7 @@ export default function SuperAdminPlans() {
           }
         }
 
-        // `dtoKey` is the short name the API returns (users, staff, …); the
+        // `dtoKey` is the short name the API returns (users, customers, …); the
         // patch itself still uses the flat max* field names.
         for (const row of PLAN_LIMIT_ROWS) {
           const next = limitValue(form[row.key]);
@@ -337,7 +335,7 @@ export default function SuperAdminPlans() {
     return (
       <article
         key={plan.id}
-        className="flex flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/60"
+        className="flex flex-col rounded-card border border-primary-100/70 bg-white/95 p-6 shadow-card"
       >
         <header className="flex items-start justify-between gap-3">
           <div>
@@ -637,8 +635,8 @@ export default function SuperAdminPlans() {
               onChange={(e) => setField("isActive", e.target.checked)}
               disabled={saving}
               className={cn(
-                "h-4 w-4 rounded border-slate-300 text-blue-800",
-                "focus:ring-2 focus:ring-blue-200 disabled:opacity-50"
+                "h-4 w-4 rounded border-line-strong text-primary-700",
+                "focus:ring-2 focus:ring-primary-200 disabled:opacity-50"
               )}
             />
             <span className="text-sm text-slate-700">Active</span>

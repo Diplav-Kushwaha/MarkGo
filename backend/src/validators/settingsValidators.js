@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+const phoneRegex = /^\d{10}$/;
+
 const prefixSchema = z
   .string()
   .trim()
@@ -45,3 +47,21 @@ export const settingsDefaults = {
   decimalPlaces: 2,
   defaultPaymentTermsDays: 15,
 };
+
+export const updateCompanySchema = z.object({
+  name: z.string().trim().min(2, "Company name must be at least 2 characters.").max(120).optional(),
+  address: z.string().trim().max(300).optional().nullable(),
+  state: z.string().trim().max(100).optional().nullable(),
+  city: z.string().trim().max(100).optional().nullable(),
+  country: z.string().trim().max(100).optional().nullable(),
+  email: z.string().trim().toLowerCase().email("Enter a valid email address.").max(254).optional().nullable(),
+  gstNumber: z.string().trim().toUpperCase().max(20).optional().nullable(),
+  currency: z.string().trim().length(3, "Currency must be a 3-letter code.").toUpperCase().optional(),
+  financialYearStart: z.number().int().min(1).max(12).optional(),
+});
+
+export const updateAdminProfileSchema = z.object({
+  fullName: z.string().trim().min(2, "Full name must be at least 2 characters.").max(120).optional(),
+  phoneNumber: z.string().trim().regex(phoneRegex, "Phone number must be exactly 10 digits.").optional(),
+  email: z.string().trim().toLowerCase().email("Enter a valid email address.").max(254).optional().nullable(),
+});

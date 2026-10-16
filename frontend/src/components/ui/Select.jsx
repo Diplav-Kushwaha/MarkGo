@@ -24,7 +24,7 @@ const Select = forwardRef(function Select(
   const selectId = id || props.name || generatedId;
   // Exposed as a size rather than a className override: Tailwind emits `h-9`
   // after `h-8`, so overriding the height through className alone would lose.
-  const controlSize = size === "sm" ? "h-8 text-xs" : "h-9";
+  const controlSize = size === "sm" ? "h-10 text-xs" : "h-11";
 
   return (
     <Field label={label} htmlFor={selectId} required={required} error={error} hint={hint} className={containerClassName}>
@@ -34,12 +34,12 @@ const Select = forwardRef(function Select(
           id={selectId}
           aria-invalid={error ? true : undefined}
           className={cn(
-            "w-full appearance-none rounded-lg border bg-surface pl-3 pr-8 text-body transition-colors",
-            "focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-muted",
+            "w-full appearance-none rounded-control border border-line bg-white pl-3 pr-8 text-body transition-all duration-150",
+            "focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500/20 disabled:cursor-not-allowed disabled:bg-muted-soft disabled:text-muted",
             controlSize,
             error
               ? "border-danger focus:border-danger focus:ring-red-500/20"
-              : "border-line focus:border-primary-600 focus:ring-primary-600/20",
+              : "border-line focus:border-primary-500 focus:ring-primary-500/20",
             className
           )}
           {...props}

@@ -42,7 +42,6 @@ export const createInvoiceSchema = z.object({
   customerId: z.string().uuid("Invalid customer ID"),
   invoiceDate: dateString.optional(),
   dueDate: dateString.optional(),
-  currency: z.string().trim().length(3).default("INR"),
   notes: optionalText(2000, "Notes"),
   termsAndConditions: optionalText(2000, "Terms and conditions"),
   items: z.array(invoiceItemSchema).min(1, "At least one item is required"),

@@ -33,7 +33,7 @@ export const getAllCompanies = async (params = {}) => {
 
 /**
  * Platform-wide totals for the Super Admin dashboard: company totals and
- * per-status breakdown, staff/accountant/vendor/customer counts, invoice
+ * per-status breakdown, vendor/customer counts, invoice
  * count, total billed, total expense, profit/loss and the 5 newest companies.
  *
  * GET /api/superadmin/dashboard

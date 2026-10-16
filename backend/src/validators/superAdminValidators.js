@@ -26,9 +26,14 @@ function numericParam({ fallback, min, max, label }) {
 
 export const listSuperAdminCompaniesQuerySchema = z.object({
   search: z.string().trim().max(120, "Search term is too long.").optional(),
+  // PENDING_PAYMENT is a real CompanyStatus, so it has to be filterable here;
+  // the Super Admin Companies screen offers it. Every value here is also a
+  // member of COMPANY_STATUSES in superAdminService.js.
   status: z
-    .enum(["ACTIVE", "SUSPENDED", "CANCELLED"], {
-      errorMap: () => ({ message: "Status must be ACTIVE, SUSPENDED or CANCELLED." }),
+    .enum(["ACTIVE", "SUSPENDED", "CANCELLED", "PENDING_PAYMENT"], {
+      errorMap: () => ({
+        message: "Status must be ACTIVE, SUSPENDED, CANCELLED or PENDING_PAYMENT.",
+      }),
     })
     .optional(),
   // Whitelisted here so the service never interpolates a caller-supplied

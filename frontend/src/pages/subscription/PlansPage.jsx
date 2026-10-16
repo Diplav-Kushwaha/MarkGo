@@ -13,15 +13,15 @@ import {
 /** Grey block shown while the plans load. */
 function PlanCardSkeleton() {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/60">
-      <div className="animate-pulse rounded-lg bg-slate-200 h-5 w-24" />
-      <div className="mt-4 animate-pulse rounded-lg bg-slate-200 h-8 w-32" />
+    <div className="rounded-card border border-primary-100 bg-white p-6 shadow-card">
+      <div className="h-5 w-24 animate-pulse rounded bg-[#E8E4F3]" />
+      <div className="mt-4 h-8 w-32 animate-pulse rounded bg-[#E8E4F3]" />
       <div className="mt-6 space-y-3">
         {[0, 1, 2, 3, 4].map((row) => (
-          <div key={row} className="animate-pulse rounded bg-slate-200 h-3.5 w-full" />
+          <div key={row} className="h-3.5 w-full animate-pulse rounded bg-[#E8E4F3]" />
         ))}
       </div>
-      <div className="mt-6 animate-pulse rounded-xl bg-slate-200 h-11 w-full" />
+      <div className="mt-6 h-11 w-full animate-pulse rounded-control bg-[#E8E4F3]" />
     </div>
   );
 }
@@ -30,17 +30,17 @@ function PlanCard({ plan }) {
   const free = isFreePlan(plan);
 
   return (
-    <article className="flex flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/60">
+    <article className="flex flex-col rounded-card border border-primary-100 bg-white p-6 shadow-card">
       <header>
-        <h2 className="text-lg font-bold text-slate-900">{plan.name}</h2>
-        <p className="mt-1 text-xs font-medium text-slate-500">{billingLabel(plan)}</p>
+        <h2 className="text-lg font-bold text-ink">{plan.name}</h2>
+        <p className="mt-1 text-xs font-medium text-muted">{billingLabel(plan)}</p>
       </header>
 
       <p className="mt-4 flex items-baseline gap-2">
-        <span className="text-3xl font-bold tracking-tight text-slate-900">
+        <span className="text-3xl font-bold tracking-tight text-ink">
           {free ? "Free" : formatCurrency(plan.price)}
         </span>
-        {!free && <span className="text-xs text-slate-500">{billingLabel(plan)}</span>}
+        {!free && <span className="text-xs text-muted">{billingLabel(plan)}</span>}
       </p>
 
       <dl className="mt-6 flex-1 space-y-3">
@@ -49,10 +49,10 @@ function PlanCard({ plan }) {
           const unlimited = value === null;
           return (
             <div key={row.key} className="flex items-center justify-between gap-3 text-sm">
-              <dt className="text-slate-600">{row.label}</dt>
+              <dt className="text-body">{row.label}</dt>
               <dd
                 className={`font-semibold ${
-                  unlimited ? "text-emerald-600" : "text-slate-900"
+                  unlimited ? "text-green-700" : "text-ink"
                 }`}
               >
                 {unlimited && (
@@ -71,7 +71,7 @@ function PlanCard({ plan }) {
       <Link
         to={`/register?plan=${plan.id}`}
         aria-label={`${free ? "Get started" : "Choose plan"} with ${plan.name}`}
-        className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200"
+        className="mt-6 inline-flex min-h-11 w-full items-center justify-center rounded-control bg-[#111A3A] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#1B2550] focus:outline-none focus:ring-4 focus:ring-primary-200"
       >
         {free ? "Get started" : "Choose plan"}
       </Link>
@@ -115,12 +115,12 @@ export default function PlansPage() {
   }, [reloadToken]);
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-slate-100">
+    <div className="min-h-[calc(100vh-4rem)] bg-transparent">
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
         {/* Brand + heading */}
         <div className="text-center">
           <span className="inline-flex items-center gap-2.5">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-800 text-white">
+            <span className="flex h-10 w-10 items-center justify-center rounded-control bg-[#111A3A] text-white shadow-sm">
               <svg
                 viewBox="0 0 40 32"
                 fill="none"
@@ -143,22 +143,22 @@ export default function PlansPage() {
               </svg>
             </span>
             <span className="text-xl font-bold tracking-tight text-slate-900">
-              Mark<span className="text-blue-800">Go</span>
+              Mark<span className="text-primary-700">Go</span>
             </span>
           </span>
 
-          <h1 className="mt-6 text-3xl font-bold tracking-tight text-slate-900">
+          <h1 className="mt-6 text-3xl font-bold tracking-tight text-ink">
             Choose your plan
           </h1>
-          <p className="mt-2 text-sm text-slate-500">
+          <p className="mt-2 text-sm text-body">
             Start free, or pick a plan and pay online. No card details are needed.
           </p>
 
-          <p className="mt-4 text-sm text-slate-500">
+          <p className="mt-4 text-sm text-body">
             Already have an account?{" "}
             <Link
               to="/admin/login"
-              className="font-semibold text-blue-800 hover:text-blue-700 hover:underline underline-offset-4"
+              className="font-semibold text-primary-800 hover:text-primary-700 hover:underline underline-offset-4"
             >
               Sign in
             </Link>
@@ -169,19 +169,19 @@ export default function PlansPage() {
         {error && (
           <div
             role="alert"
-            className="mx-auto mt-8 flex max-w-xl items-start justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3"
+            className="mx-auto mt-8 flex max-w-xl items-start justify-between gap-3 rounded-tile border border-danger-line bg-danger-soft px-4 py-3"
           >
             <div className="flex items-start gap-2.5">
               <AlertCircle
-                className="mt-0.5 h-4 w-4 shrink-0 text-red-600"
+                className="mt-0.5 h-4 w-4 shrink-0 text-danger"
                 aria-hidden="true"
               />
-              <p className="text-sm text-red-600">{error}</p>
+              <p className="text-sm text-red-700">{error}</p>
             </div>
             <button
               type="button"
               onClick={retry}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50"
+              className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-control border border-danger-line bg-white px-3 py-1.5 text-xs font-semibold text-red-700 transition-colors hover:bg-danger-soft"
             >
               <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
               Retry
@@ -198,7 +198,7 @@ export default function PlansPage() {
               <PlanCardSkeleton />
             </div>
           ) : error ? null : plans.length === 0 ? (
-            <p className="rounded-2xl border border-slate-200 bg-white px-6 py-12 text-center text-sm text-slate-500 shadow-xl shadow-slate-200/60">
+            <p className="rounded-card border border-primary-100 bg-white px-6 py-12 text-center text-sm text-body shadow-card">
               No plans are available right now. Please try again later.
             </p>
           ) : (

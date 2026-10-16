@@ -6,19 +6,7 @@ import { logAuthEvent } from "../utils/auditLogger.js";
 import { calculateEndDate } from "./subscriptionService.js";
 import { createPayment } from "./subscriptionPaymentService.js";
 import { generateUniqueSlug } from "../controllers/companyAdminAuthController.js";
-
-/**
- * Super Admin creates a company and puts it on a plan in one go.
- *
- * The company/admin creation mirrors the public registration exactly — same slug
- * rules, same password policy, same COMPANY_ADMIN role — by reusing its exported
- * helpers rather than copying them, so the two paths cannot drift apart. What
- * this service does NOT do is the public path's abandoned-pending cleanup: a
- * Super Admin deleting a tenant is an explicit, audited action.
- *
- * Nothing here ever issues a token or cookie, so the Super Admin's own session
- * is untouched and the new admin is never signed in by this API.
- */
+import { normalizePhone, invalidPhoneError } from "../utils/phone.js";
 
 const SALT_ROUNDS = 12;
 
@@ -29,9 +17,6 @@ function httpError(message, status, data) {
   return err;
 }
 
-/**
- * Resolves the plan from the database. Money is never taken from the request.
- */
 async function requireUsablePlan(planId) {
   if (!planId) throw httpError("Select a plan.", 400);
 
@@ -42,14 +27,12 @@ async function requireUsablePlan(planId) {
   return plan;
 }
 
-/**
- * POST /api/superadmin/companies
- */
 export async function createCompanyWithPlan(body, { ip, userId } = {}) {
   const {
     companyName,
     companyEmail,
     companyAddress,
+    state,
     gstNumber,
     city,
     country,
@@ -62,7 +45,6 @@ export async function createCompanyWithPlan(body, { ip, userId } = {}) {
     paymentNote,
   } = body;
 
-  // Same strength rules as public registration, applied before anything is written.
   if (!isPasswordComplexEnough(password)) {
     throw httpError(
       "Password must include upper/lowercase letters, a digit, and a special character.",
@@ -76,16 +58,18 @@ export async function createCompanyWithPlan(body, { ip, userId } = {}) {
     );
   }
 
+  const normalizedPhone = normalizePhone(phoneNumber);
+  if (!normalizedPhone) {
+    throw invalidPhoneError();
+  }
+
   const plan = await requireUsablePlan(planId);
   const isFree = plan.billingCycle === "FREE";
-  // A Free plan is always live; payment only decides how a paid plan is settled.
   const useOnline = !isFree && payment === "ONLINE";
 
-  // Duplicate checks, same order and messages as public registration. Nothing is
-  // auto-deleted here; a pending blocker is reported instead.
-  const [existingUser, existingCompanyByEmail] = await Promise.all([
-    prisma.user.findUnique({ where: { email }, include: { company: { select: { id: true, status: true } } } }),
-    prisma.company.findUnique({ where: { email: companyEmail } }),
+  const [existingUserByPhone, existingCompanyByEmail] = await Promise.all([
+    prisma.user.findUnique({ where: { phoneNumber: normalizedPhone }, include: { company: { select: { id: true, status: true } } } }),
+    companyEmail ? prisma.company.findUnique({ where: { email: companyEmail.toLowerCase() } }) : null,
   ]);
 
   let existingCompanyByGst = null;
@@ -99,15 +83,15 @@ export async function createCompanyWithPlan(body, { ip, userId } = {}) {
     companyId: company.id,
   });
 
-  if (existingUser) {
-    if (existingUser.company?.status === "PENDING_PAYMENT") {
+  if (existingUserByPhone) {
+    if (existingUserByPhone.company?.status === "PENDING_PAYMENT") {
       throw httpError(
-        "An account with this email already exists.",
+        "An account with this phone number already exists.",
         409,
-        pendingHint(existingUser.company)
+        pendingHint(existingUserByPhone.company)
       );
     }
-    throw httpError("An account with this email already exists.", 409);
+    throw httpError("An account with this phone number already exists.", 409);
   }
 
   if (existingCompanyByEmail) {
@@ -132,8 +116,6 @@ export async function createCompanyWithPlan(body, { ip, userId } = {}) {
     throw httpError("A company with this GST number is already registered.", 409);
   }
 
-  // Slug collisions are resolved the same way public registration does, so the
-  // friendly "matching name/slug" 409 there is covered by the unique index here.
   const slug = await generateUniqueSlug(companyName);
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
   const now = new Date();
@@ -144,13 +126,12 @@ export async function createCompanyWithPlan(body, { ip, userId } = {}) {
         data: {
           name: companyName.trim(),
           slug,
-          email: companyEmail,
+          email: companyEmail?.toLowerCase() || null,
           address: companyAddress,
+          state: state || null,
           gstNumber: gstNumber || null,
-          city,
-          country,
-          // Online payment waits on the public dummy payment page; everything else
-          // is live straight away.
+          city: city || null,
+          country: country || null,
           status: useOnline ? "PENDING_PAYMENT" : "ACTIVE",
         },
       });
@@ -158,10 +139,10 @@ export async function createCompanyWithPlan(body, { ip, userId } = {}) {
       const user = await tx.user.create({
         data: {
           companyId: company.id,
-          email,
+          email: email?.toLowerCase() || null,
           passwordHash,
           fullName,
-          phoneNumber,
+          phoneNumber: normalizedPhone,
           role: "COMPANY_ADMIN",
           isEmailVerified: true,
         },
@@ -174,7 +155,6 @@ export async function createCompanyWithPlan(body, { ip, userId } = {}) {
           companyId: company.id,
           planId: plan.id,
           status: useOnline ? "PENDING" : "ACTIVE",
-          // Snapshotted from the plan row.
           billingCycle: plan.billingCycle,
           priceAtPurchase: new Decimal(isFree ? 0 : toNumber(plan.price)),
           startDate: useOnline ? null : now,
@@ -186,10 +166,8 @@ export async function createCompanyWithPlan(body, { ip, userId } = {}) {
       let paymentRow = null;
 
       if (useOnline) {
-        // Same dummy payment row the public paid registration creates.
         paymentRow = await createPayment(tx, { subscription, companyId: company.id });
       } else if (!isFree) {
-        // Recorded by hand: paid on the spot, at the plan's database price.
         paymentRow = await tx.subscriptionPayment.create({
           data: {
             companyId: company.id,
@@ -242,7 +220,7 @@ export async function createCompanyWithPlan(body, { ip, userId } = {}) {
     };
   } catch (err) {
     if (err.code === "P2002") {
-      throw httpError("Email, company, or GST number already registered.", 409);
+      throw httpError("Phone, company, or GST number already registered.", 409);
     }
     throw err;
   }

@@ -2,7 +2,33 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 
 const ACCESS_TOKEN_TTL = process.env.ACCESS_TOKEN_TTL || "15m";
-const ACCESS_TOKEN_TTL_MS = 15 * 60 * 1000; // keep in sync with ACCESS_TOKEN_TTL above if you change it
+function parseAccessTokenTtlMs(value) {
+  if (typeof value === "number") return value * 1000;
+
+  const match = String(value).trim().match(/^(-?(?:\d+\.?\d*|\.\d+))\s*([a-z]+)?$/i);
+  if (!match) throw new Error("ACCESS_TOKEN_TTL must be a valid JWT time span.");
+
+  const amount = Number(match[1]);
+  const unit = (match[2] || "ms").toLowerCase();
+  const multipliers = {
+    ms: 1, msec: 1, msecs: 1, millisecond: 1, milliseconds: 1,
+    s: 1000, sec: 1000, secs: 1000, second: 1000, seconds: 1000,
+    m: 60_000, min: 60_000, mins: 60_000, minute: 60_000, minutes: 60_000,
+    h: 3_600_000, hr: 3_600_000, hrs: 3_600_000, hour: 3_600_000, hours: 3_600_000,
+    d: 86_400_000, day: 86_400_000, days: 86_400_000,
+    w: 604_800_000, week: 604_800_000, weeks: 604_800_000,
+    month: 2_592_000_000, months: 2_592_000_000,
+    y: 31_557_600_000, yr: 31_557_600_000, yrs: 31_557_600_000,
+    year: 31_557_600_000, years: 31_557_600_000,
+  };
+  const multiplier = multipliers[unit] ?? multipliers[unit.toLowerCase()];
+  if (!multiplier || !Number.isFinite(amount)) {
+    throw new Error("ACCESS_TOKEN_TTL must be a valid JWT time span.");
+  }
+  return amount * multiplier;
+}
+
+const ACCESS_TOKEN_TTL_MS = parseAccessTokenTtlMs(ACCESS_TOKEN_TTL);
 const REFRESH_TOKEN_TTL_DAYS = Number(process.env.REFRESH_TOKEN_TTL_DAYS || 30);
 export const REFRESH_TOKEN_TTL_MS = REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000;
 

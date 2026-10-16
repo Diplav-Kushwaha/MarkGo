@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { ClipboardList, FileText, Mail, Wallet } from "lucide-react";
+import { ClipboardList, FileText, Phone, Wallet } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { validatePhone } from "../../lib/phone";
 import AuthLayout, { AuthSubmitButton } from "../../components/auth/AuthLayout";
 import AuthField, {
   AuthAlert,
@@ -13,31 +14,39 @@ export default function CustomerLogin() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // If redirected by protected route, go back there, else to customer dashboard
-  const redirectPath = location.state?.from?.pathname || "/customer/dashboard";
+  const redirectPath = location.state?.from?.pathname || "/customer/dashboard/purchased-products";
 
   const [formData, setFormData] = useState({
     companySlug: location.state?.companySlug || "",
-    email: location.state?.email || "",
+    phoneNumber: location.state?.phoneNumber || "",
     password: "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [phoneError, setPhoneError] = useState("");
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setError("");
+    setPhoneError("");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setPhoneError("");
+
+    const phoneResult = validatePhone(formData.phoneNumber);
+    if (!phoneResult.valid) {
+      setPhoneError(phoneResult.error);
+      return;
+    }
 
     try {
       setLoading(true);
       const res = await loginCust({
         companySlug: formData.companySlug.trim().toLowerCase(),
-        email: formData.email.trim().toLowerCase(),
+        phoneNumber: phoneResult.normalized,
         password: formData.password,
       });
 
@@ -74,15 +83,25 @@ export default function CustomerLogin() {
       ]}
       footerNote="Access is limited to the company you buy from."
       footerLink={
-        <p className="text-sm text-slate-500">
-          Are you a company administrator?{" "}
-          <Link
-            to="/admin/login"
-            className="font-semibold text-blue-800 hover:text-blue-700 hover:underline underline-offset-4"
-          >
-            Company Admin Login
-          </Link>
-        </p>
+        <>
+          <p className="text-sm text-body">
+            Are you a company administrator?{" "}
+            <Link
+              to="/admin/login"
+              className="font-semibold text-primary-800 hover:text-primary-700 hover:underline underline-offset-4"
+            >
+              Company Admin Login
+            </Link>
+          </p>
+          <p className="mt-2 text-sm text-body">
+            <Link
+              to="/"
+              className="font-semibold text-primary-800 hover:text-primary-700 hover:underline underline-offset-4"
+            >
+              Back to home
+            </Link>
+          </p>
+        </>
       }
     >
       <AuthAlert message={error} />
@@ -104,17 +123,19 @@ export default function CustomerLogin() {
         />
 
         <AuthField
-          id="email"
-          name="email"
-          type="email"
-          label="Email address"
-          icon={Mail}
-          autoComplete="username"
+          id="phoneNumber"
+          name="phoneNumber"
+          type="tel"
+          label="Phone number"
+          icon={Phone}
+          autoComplete="tel"
           required
-          value={formData.email}
+          value={formData.phoneNumber}
           onChange={handleChange}
-          placeholder="you@example.com"
+          placeholder="9876543210"
           disabled={loading}
+          error={phoneError}
+          hint={phoneError ? undefined : "10 digits. No spaces, dashes, or +91."}
         />
 
         <AuthPasswordField

@@ -10,6 +10,7 @@ import { getAccessCookieOptions, getRefreshCookieOptions } from "../utils/tokens
 import { isPasswordComplexEnough, isPasswordBreached } from "../utils/passwordPolicy.js";
 import { logAuthEvent } from "../utils/auditLogger.js";
 import { createPayment } from "../services/subscriptionPaymentService.js";
+import { normalizePhone, INVALID_PHONE_MESSAGE } from "../utils/phone.js";
 
 const SALT_ROUNDS = 12;
 const MAX_FAILED_ATTEMPTS = 5;
@@ -98,7 +99,7 @@ async function resolveRegistrationPlan(planId) {
  *   - status is PENDING_PAYMENT
  *   - no PAID subscription payment
  *   - no ACTIVE subscription
- *   - zero customers, vendors, invoices, bills, staff and accountants
+ *   - zero customers, vendors, invoices, bills
  */
 async function isCleanablePendingCompany(companyId) {
   const company = await prisma.company.findUnique({
@@ -108,7 +109,7 @@ async function isCleanablePendingCompany(companyId) {
 
   if (!company || company.status !== "PENDING_PAYMENT") return false;
 
-  const [paidPayments, activeSubscriptions, customers, vendors, invoices, bills, staff, accountants] =
+  const [paidPayments, activeSubscriptions, customers, vendors, invoices, bills] =
     await Promise.all([
       prisma.subscriptionPayment.count({ where: { companyId, status: "PAID" } }),
       prisma.subscription.count({ where: { companyId, status: "ACTIVE" } }),
@@ -116,8 +117,6 @@ async function isCleanablePendingCompany(companyId) {
       prisma.vendor.count({ where: { companyId } }),
       prisma.invoice.count({ where: { companyId } }),
       prisma.bill.count({ where: { companyId } }),
-      prisma.staff.count({ where: { companyId } }),
-      prisma.accountant.count({ where: { companyId } }),
     ]);
 
   return (
@@ -126,9 +125,7 @@ async function isCleanablePendingCompany(companyId) {
     customers === 0 &&
     vendors === 0 &&
     invoices === 0 &&
-    bills === 0 &&
-    staff === 0 &&
-    accountants === 0
+    bills === 0
   );
 }
 
@@ -144,6 +141,7 @@ export async function registerCompanyAdmin(req, res) {
     companyName,
     companyEmail,
     companyAddress,
+    state,
     gstNumber,
     city,
     country,
@@ -172,35 +170,33 @@ export async function registerCompanyAdmin(req, res) {
       });
     }
 
+    // Normalize phone number
+    const normalizedPhone = normalizePhone(phoneNumber);
+    if (!normalizedPhone) {
+      return res.status(400).json({ success: false, message: INVALID_PHONE_MESSAGE });
+    }
+
     const proposedSlug = slugify(companyName);
 
     // Which plan this registration is for. Throws 400 when none is usable.
     const plan = await resolveRegistrationPlan(planId || null);
     const isPaidPlan = plan.billingCycle !== "FREE";
 
-    // Check every unique field up front so we can return one clear error
-    // instead of relying solely on the Prisma P2002 catch below.
-    const [existingUser, existingCompanyBySlug, existingCompanyByEmail, existingCompanyByGst] =
+    // Check unique fields: phone (global for User), slug, companyEmail, gstNumber
+    const [existingUserByPhone, existingCompanyBySlug, existingCompanyByEmail, existingCompanyByGst] =
       await Promise.all([
-        prisma.user.findUnique({ where: { email } }),
+        prisma.user.findUnique({ where: { phoneNumber: normalizedPhone } }),
         prisma.company.findUnique({ where: { slug: proposedSlug } }),
-        prisma.company.findUnique({ where: { email: companyEmail } }),
+        companyEmail ? prisma.company.findUnique({ where: { email: companyEmail.toLowerCase() } }) : null,
         gstNumber ? prisma.company.findUnique({ where: { gstNumber } }) : null,
       ]);
 
-    // Every company that would block this registration. An abandoned paid
-    // registration still owns User.email and Company.email, so a retry would hit
-    // the duplicate checks below and never get a chance to clean up — unless the
-    // blockage is resolved first.
     const blockingCompanyIds = new Set();
-    if (existingUser?.companyId) blockingCompanyIds.add(existingUser.companyId);
+    if (existingUserByPhone?.companyId) blockingCompanyIds.add(existingUserByPhone.companyId);
     if (existingCompanyBySlug) blockingCompanyIds.add(existingCompanyBySlug.id);
     if (existingCompanyByEmail) blockingCompanyIds.add(existingCompanyByEmail.id);
     if (existingCompanyByGst) blockingCompanyIds.add(existingCompanyByGst.id);
 
-    // Only clean up when EVERY blocking company qualifies. If any one of them is
-    // real, active, paid or holds data, nothing is deleted and the duplicate
-    // checks below answer exactly as they do today.
     let cleanableCompanyIds = [];
     if (blockingCompanyIds.size > 0) {
       const verdicts = await Promise.all(
@@ -211,13 +207,13 @@ export async function registerCompanyAdmin(req, res) {
       }
     }
 
-    if (existingUser && cleanableCompanyIds.length === 0) {
-      logAuthEvent({ event: "REGISTER", success: false, email, ip, reason: "email_taken" });
-      return res.status(409).json({ success: false, message: "An account with this email already exists." });
+    if (existingUserByPhone && cleanableCompanyIds.length === 0) {
+      logAuthEvent({ event: "REGISTER", success: false, phone: normalizedPhone, ip, reason: "phone_taken" });
+      return res.status(409).json({ success: false, message: "An account with this phone number already exists." });
     }
 
     if (existingCompanyBySlug && cleanableCompanyIds.length === 0) {
-      logAuthEvent({ event: "REGISTER", success: false, email, ip, reason: "company_slug_taken" });
+      logAuthEvent({ event: "REGISTER", success: false, phone: normalizedPhone, ip, reason: "company_slug_taken" });
       return res.status(409).json({
         success: false,
         message: "A company with a matching name/slug is already registered.",
@@ -225,7 +221,7 @@ export async function registerCompanyAdmin(req, res) {
     }
 
     if (existingCompanyByEmail && cleanableCompanyIds.length === 0) {
-      logAuthEvent({ event: "REGISTER", success: false, email, ip, reason: "company_email_taken" });
+      logAuthEvent({ event: "REGISTER", success: false, phone: normalizedPhone, ip, reason: "company_email_taken" });
       return res.status(409).json({
         success: false,
         message: "A company with this email is already registered.",
@@ -233,7 +229,7 @@ export async function registerCompanyAdmin(req, res) {
     }
 
     if (existingCompanyByGst && cleanableCompanyIds.length === 0) {
-      logAuthEvent({ event: "REGISTER", success: false, email, ip, reason: "gst_taken" });
+      logAuthEvent({ event: "REGISTER", success: false, phone: normalizedPhone, ip, reason: "gst_taken" });
       return res.status(409).json({
         success: false,
         message: "A company with this GST number is already registered.",
@@ -245,9 +241,6 @@ export async function registerCompanyAdmin(req, res) {
     const now = new Date();
 
     const result = await prisma.$transaction(async (tx) => {
-      // Remove abandoned pending registrations first. Every child of Company is
-      // onDelete: Cascade, so deleting the company row removes its users,
-      // subscriptions and subscription payments in the same statement.
       for (const blockingId of cleanableCompanyIds) {
         await tx.company.delete({ where: { id: blockingId } });
       }
@@ -256,12 +249,12 @@ export async function registerCompanyAdmin(req, res) {
         data: {
           name: companyName.trim(),
           slug,
-          email: companyEmail,
+          email: companyEmail?.toLowerCase() || null,
           address: companyAddress,
+          state: state || null,
           gstNumber: gstNumber || null,
-          city,
-          country,
-          // A paid plan waits for its dummy payment; Free is live immediately.
+          city: city || null,
+          country: country || null,
           status: isPaidPlan ? "PENDING_PAYMENT" : "ACTIVE",
         },
       });
@@ -269,12 +262,12 @@ export async function registerCompanyAdmin(req, res) {
       const user = await tx.user.create({
         data: {
           companyId: company.id,
-          email,
+          email: email?.toLowerCase() || null,
           passwordHash,
           fullName,
-          phoneNumber,
+          phoneNumber: normalizedPhone,
           role: "COMPANY_ADMIN",
-          isEmailVerified: true, // no email verification for now — intentional scope cut
+          isEmailVerified: true,
         },
       });
 
@@ -283,7 +276,6 @@ export async function registerCompanyAdmin(req, res) {
           companyId: company.id,
           planId: plan.id,
           status: isPaidPlan ? "PENDING" : "ACTIVE",
-          // Snapshotted from the plan row, never from the request.
           billingCycle: plan.billingCycle,
           priceAtPurchase: new Decimal(isPaidPlan ? plan.price : 0),
           startDate: isPaidPlan ? null : now,
@@ -297,7 +289,7 @@ export async function registerCompanyAdmin(req, res) {
       return { company, user, subscription, payment, plan };
     });
 
-    logAuthEvent({ event: "REGISTER", success: true, email, userId: result.user.id, role: "COMPANY_ADMIN", ip });
+    logAuthEvent({ event: "REGISTER", success: true, phone: normalizedPhone, userId: result.user.id, role: "COMPANY_ADMIN", ip });
 
     return res.status(201).json({
       success: true,
@@ -335,7 +327,7 @@ export async function registerCompanyAdmin(req, res) {
     console.error("registerCompanyAdmin error:", err);
 
     if (err.code === "P2002") {
-      return res.status(409).json({ success: false, message: "Email, company, or GST number already registered." });
+      return res.status(409).json({ success: false, message: "Phone, company, or GST number already registered." });
     }
 
     return res.status(500).json({ success: false, message: "Internal server error during registration." });
@@ -346,23 +338,33 @@ export async function registerCompanyAdmin(req, res) {
  * POST /api/admin/login
  */
 export async function loginCompanyAdmin(req, res) {
-  const { email, password } = req.body;
+  const { phoneNumber, password } = req.body;
   const ip = req.ip;
 
   try {
+    const normalizedPhone = normalizePhone(phoneNumber);
+    if (!normalizedPhone) {
+      return res.status(400).json({ success: false, message: INVALID_PHONE_MESSAGE });
+    }
+
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { phoneNumber: normalizedPhone },
       include: { company: true },
     });
 
     if (!user || user.role !== "COMPANY_ADMIN") {
-      logAuthEvent({ event: "LOGIN", success: false, email, ip, reason: "no_such_account" });
+      logAuthEvent({ event: "LOGIN", success: false, phone: normalizedPhone, ip, reason: "no_such_account" });
+      return res.status(401).json({ success: false, message: "Invalid credentials." });
+    }
+
+    if (user.isActive === false) {
+      logAuthEvent({ event: "LOGIN", success: false, phone: normalizedPhone, userId: user.id, ip, reason: "inactive_account" });
       return res.status(401).json({ success: false, message: "Invalid credentials." });
     }
 
     if (user.lockUntil && user.lockUntil > new Date()) {
       const minutesLeft = Math.ceil((user.lockUntil.getTime() - Date.now()) / 60000);
-      logAuthEvent({ event: "LOGIN", success: false, email, userId: user.id, ip, reason: "locked" });
+      logAuthEvent({ event: "LOGIN", success: false, phone: normalizedPhone, userId: user.id, ip, reason: "locked" });
       return res.status(423).json({
         success: false,
         message: `Account temporarily locked due to repeated failed login attempts. Try again in ${minutesLeft} minute(s).`,
@@ -386,7 +388,7 @@ export async function loginCompanyAdmin(req, res) {
       logAuthEvent({
         event: "LOGIN",
         success: false,
-        email,
+        phone: normalizedPhone,
         userId: user.id,
         ip,
         reason: shouldLock ? "locked_out" : "bad_password",
@@ -402,7 +404,6 @@ export async function loginCompanyAdmin(req, res) {
       return res.status(401).json({ success: false, message: "Invalid credentials." });
     }
 
-    // Successful login: clear any lockout state and issue a fresh token pair.
     await prisma.user.update({
       where: { id: user.id },
       data: { failedLoginAttempts: 0, lockUntil: null },
@@ -436,11 +437,9 @@ export async function loginCompanyAdmin(req, res) {
         }
       : null;
 
-    logAuthEvent({ event: "LOGIN", success: true, email, userId: user.id, role: user.role, ip });
+    logAuthEvent({ event: "LOGIN", success: true, phone: normalizedPhone, userId: user.id, role: user.role, ip });
 
     if (isMobileClient) {
-      // No shared browser cookie jar on mobile — return tokens in the body
-      // so the app can store them in secure/encrypted storage.
       return res.status(200).json({
         success: true,
         message: "Login successful.",
@@ -512,6 +511,8 @@ export async function getCompanyAdminProfile(req, res) {
             gstNumber: true,
             city: true,
             country: true,
+            currency: true,
+            financialYearStart: true,
             createdAt: true,
           },
         },

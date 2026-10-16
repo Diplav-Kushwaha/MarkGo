@@ -25,10 +25,10 @@ export const acceptVendorInvite = async ({ token, password }) => {
  * Vendor sign in
  * POST /api/vendor/login
  */
-export const loginVendor = async ({ companySlug, email, password }) => {
+export const loginVendor = async ({ companySlug, phoneNumber, password }) => {
   const response = await axiosInstance.post("/api/vendor/login", {
     companySlug,
-    email,
+    phoneNumber,
     password,
   });
   return response.data;

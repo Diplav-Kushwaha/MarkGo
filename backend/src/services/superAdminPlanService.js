@@ -49,7 +49,6 @@ function planDto(plan, counts = {}) {
     // Null means unlimited.
     limits: {
       users: plan.maxUsers ?? null,
-      staff: plan.maxStaff ?? null,
       customers: plan.maxCustomers ?? null,
       vendors: plan.maxVendors ?? null,
       invoices: plan.maxInvoices ?? null,
@@ -68,10 +67,11 @@ async function assertPlanRules({ name, billingCycle, price, durationMonths }, { 
   if (name !== undefined) {
     const trimmed = name.trim();
     // Case-insensitive: MySQL's default collation is already case-insensitive,
-    // but checking here keeps the 409 identical on any database.
+    // but checking here keeps the 409 identical on any database. `mode` is
+    // deliberately absent - Prisma rejects it on MySQL.
     const clash = await prisma.plan.findFirst({
       where: {
-        name: { equals: trimmed, mode: "insensitive" },
+        name: { equals: trimmed },
         ...(currentPlanId ? { id: { not: currentPlanId } } : {}),
       },
       select: { id: true },
@@ -89,6 +89,17 @@ async function assertPlanRules({ name, billingCycle, price, durationMonths }, { 
     }
     if (durationMonths !== undefined && durationMonths !== null) {
       throw httpError("The Free plan has no duration.", 400);
+    }
+  }
+
+  // A paid plan with no duration produces a subscription that never expires,
+  // because calculateEndDate returns null for it. `durationMonths` here is always
+  // the effective value: createPlan passes the submitted one, updatePlan passes
+  // the stored one merged with the patch, so a patch can neither drop the
+  // duration nor leave an already-broken paid plan without one.
+  if (billingCycle === "MONTHLY" || billingCycle === "YEARLY") {
+    if (durationMonths === undefined || durationMonths === null) {
+      throw httpError("A paid plan needs a duration of 1 to 120 months.", 400);
     }
   }
 
@@ -153,7 +164,6 @@ export async function createPlan(data, { ip } = {}) {
     durationMonths,
     description,
     maxUsers,
-    maxStaff,
     maxCustomers,
     maxVendors,
     maxInvoices,
@@ -188,7 +198,6 @@ export async function createPlan(data, { ip } = {}) {
         billingCycle,
         durationMonths: isFree ? null : durationMonths,
         maxUsers: maxUsers ?? null,
-        maxStaff: maxStaff ?? null,
         maxCustomers: maxCustomers ?? null,
         maxVendors: maxVendors ?? null,
         maxInvoices: maxInvoices ?? null,
@@ -226,7 +235,6 @@ export async function updatePlan(id, data, { ip } = {}) {
     durationMonths,
     description,
     maxUsers,
-    maxStaff,
     maxCustomers,
     maxVendors,
     maxInvoices,
@@ -240,7 +248,6 @@ export async function updatePlan(id, data, { ip } = {}) {
     durationMonths,
     description,
     maxUsers,
-    maxStaff,
     maxCustomers,
     maxVendors,
     maxInvoices,
@@ -257,13 +264,15 @@ export async function updatePlan(id, data, { ip } = {}) {
   const isFree = plan.billingCycle === "FREE";
 
   // Rules are checked against the plan's stored cycle, since billingCycle can
-  // never be changed here.
+  // never be changed here. durationMonths falls back to the stored value so the
+  // rules below judge the plan as it would be after this patch, not just the
+  // fields the patch happens to mention.
   await assertPlanRules(
     {
       name,
       billingCycle: plan.billingCycle,
       price: price === undefined ? undefined : toNumber(price),
-      durationMonths: durationMonths === undefined ? undefined : durationMonths,
+      durationMonths: durationMonths === undefined ? plan.durationMonths : durationMonths,
     },
     { currentPlanId: plan.id }
   );
@@ -274,7 +283,6 @@ export async function updatePlan(id, data, { ip } = {}) {
   if (isActive !== undefined) update.isActive = isActive;
   if (sortOrder !== undefined) update.sortOrder = sortOrder;
   if (maxUsers !== undefined) update.maxUsers = maxUsers;
-  if (maxStaff !== undefined) update.maxStaff = maxStaff;
   if (maxCustomers !== undefined) update.maxCustomers = maxCustomers;
   if (maxVendors !== undefined) update.maxVendors = maxVendors;
   if (maxInvoices !== undefined) update.maxInvoices = maxInvoices;

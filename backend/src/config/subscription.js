@@ -5,9 +5,8 @@
  * a single, predictable place to ask "is dummy payment on?" and "is
  * subscription blocking on?".
  *
- * Nothing imports this file yet, so it has no effect on the running app. Both
- * switches default to the permissive value, which means a missing (or malformed)
- * variable can never change behaviour.
+ * Payment mode and subscription enforcement are read once at startup. Dummy
+ * payments remain the default when PAYMENT_MODE is missing.
  */
 
 /** Payment integration mode. Lower-cased so "Dummy" and "dummy" behave alike. */

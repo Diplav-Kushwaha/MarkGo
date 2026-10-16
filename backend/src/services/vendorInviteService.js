@@ -52,7 +52,7 @@ export async function verifyInviteToken({ token }) {
   }
 
   return {
-    email: invite.vendor.email,
+    phoneNumber: invite.vendor.phoneNumber,
     name: invite.vendor.name,
     companyName: invite.vendor.company?.name,
     companySlug: invite.vendor.company?.slug,

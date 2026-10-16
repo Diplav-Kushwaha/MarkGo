@@ -23,6 +23,15 @@ const EMPTY_PAGINATION = {
   totalPages: 1,
 };
 
+const FILTER_KEYS = [
+  "search",
+  "status",
+  "vendorType",
+  "category",
+  "minOutstanding",
+  "maxOutstanding",
+];
+
 // Only send parameters the backend actually reads, and only when they carry a
 // value — empty query strings would otherwise be treated as real filters.
 function buildListParams(query) {
@@ -102,9 +111,13 @@ export default function useVendorList() {
   // deliberately do not re-run when the user changes a filter.
   useEffect(() => {
     let cancelled = false;
-    setStatsLoading(true);
 
-    getVendorStats()
+    Promise.resolve()
+      .then(() => {
+        if (cancelled) return undefined;
+        setStatsLoading(true);
+        return getVendorStats();
+      })
       .then((response) => {
         if (!cancelled && response?.success) setStats(response.data ?? null);
       })
@@ -124,17 +137,26 @@ export default function useVendorList() {
   // Deleting the last row of the last page would otherwise leave the user on an
   // empty page with no way back except the pager.
   useEffect(() => {
+    let cancelled = false;
     if (
       !loading &&
       vendors.length === 0 &&
       pagination.total > 0 &&
       query.page > pagination.totalPages
     ) {
-      setQuery((previous) => ({
-        ...previous,
-        page: Math.max(1, pagination.totalPages),
-      }));
+      Promise.resolve().then(() => {
+        if (!cancelled) {
+          setQuery((previous) => ({
+            ...previous,
+            page: Math.max(1, pagination.totalPages),
+          }));
+        }
+      });
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [loading, vendors.length, pagination.total, pagination.totalPages, query.page]);
 
   // ---- Selection -------------------------------------------------------------
@@ -154,7 +176,13 @@ export default function useVendorList() {
   ].join("|");
 
   useEffect(() => {
-    setSelectedIds([]);
+    let cancelled = false;
+    Promise.resolve().then(() => {
+      if (!cancelled) setSelectedIds([]);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [selectionScope]);
 
   const toggleSelect = useCallback((vendorId) => {
@@ -186,15 +214,6 @@ export default function useVendorList() {
   const clearSelection = useCallback(() => setSelectedIds([]), []);
 
   // ---- Query mutations -------------------------------------------------------
-  const FILTER_KEYS = [
-    "search",
-    "status",
-    "vendorType",
-    "category",
-    "minOutstanding",
-    "maxOutstanding",
-  ];
-
   const updateQuery = useCallback((patch) => {
     setQuery((previous) => {
       const next = { ...previous, ...patch };

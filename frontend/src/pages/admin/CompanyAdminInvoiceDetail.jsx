@@ -283,7 +283,9 @@ export default function CompanyAdminInvoiceDetail({ invoiceId, onBack, onEdit })
               <div>
                 <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">Bill to</h3>
                 <p className="text-sm font-semibold text-ink">{invoice.customer?.name}</p>
-                <p className="mt-0.5 text-sm text-body">{invoice.customer?.email}</p>
+                {invoice.customer?.email && (
+                  <p className="mt-0.5 text-sm text-body">{invoice.customer.email}</p>
+                )}
                 {invoice.customer?.phoneNumber && (
                   <p className="text-sm text-body">{invoice.customer.phoneNumber}</p>
                 )}
@@ -396,7 +398,7 @@ export default function CompanyAdminInvoiceDetail({ invoiceId, onBack, onEdit })
                 <TotalRow label="Paid" value={formatCurrency(invoice.amountPaid)} tone="success" />
               </div>
 
-              <div className="mt-4 flex items-center justify-between rounded-lg border border-line bg-slate-50 px-4 py-3">
+              <div className="mt-4 flex items-center justify-between rounded-tile border border-primary-100 bg-primary-50/50 px-4 py-3">
                 <span className="text-sm font-medium text-body">Amount due</span>
                 <span
                   className={`text-xl font-semibold ${

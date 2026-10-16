@@ -86,7 +86,7 @@ export default function ItemDetailsDrawer({ item, onClose, onEdit }) {
         {item.description && (
           <div>
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Description</h3>
-            <p className="whitespace-pre-line rounded-lg border border-line bg-slate-50 p-3 text-sm text-body">
+            <p className="whitespace-pre-line rounded-lg border border-line bg-primary-50/60 p-3 text-sm text-body">
               {item.description}
             </p>
           </div>

@@ -5,12 +5,23 @@ import { getAccessCookieOptions, getRefreshCookieOptions } from "../utils/tokens
  * POST /api/auth/refresh
  *
  * Rotates the standard User refresh token (Company Admin / Super Admin) and
- * reissues the access cookie. Vendor, Staff, Customer and Accountant portals
+ * reissues the access cookie. Vendor and Customer portals
  * each have their own refresh endpoint.
  */
 export async function refreshTokens(req, res) {
   try {
     const rotated = await rotateRefreshToken(req.cookies?.refreshToken, req);
+
+    if (rotated?.error || !rotated?.accessToken || !rotated?.refreshCookieValue) {
+      res.clearCookie("accessToken", { ...getAccessCookieOptions(), maxAge: undefined });
+      res.clearCookie("refreshToken", { ...getRefreshCookieOptions(), maxAge: undefined });
+      const reused = rotated?.error === "reuse_detected";
+      return res.status(401).json({
+        success: false,
+        code: reused ? "REFRESH_TOKEN_REUSE_DETECTED" : "REFRESH_TOKEN_INVALID",
+        message: reused ? "Refresh token is no longer valid." : "Unable to refresh session.",
+      });
+    }
 
     res.cookie("accessToken", rotated.accessToken, getAccessCookieOptions());
     res.cookie("refreshToken", rotated.refreshCookieValue, getRefreshCookieOptions());
@@ -22,9 +33,11 @@ export async function refreshTokens(req, res) {
     res.clearCookie("accessToken", { ...getAccessCookieOptions(), maxAge: undefined });
     res.clearCookie("refreshToken", { ...getRefreshCookieOptions(), maxAge: undefined });
 
-    return res
-      .status(err.status || 401)
-      .json({ success: false, message: err.message || "Unable to refresh session." });
+    return res.status(401).json({
+      success: false,
+      code: "REFRESH_FAILED",
+      message: "Unable to refresh session.",
+    });
   }
 }
 

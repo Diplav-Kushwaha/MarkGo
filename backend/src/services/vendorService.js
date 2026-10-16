@@ -1,13 +1,47 @@
 import prisma from "../prisma.js";
+import { normalizePhone, invalidPhoneError } from "../utils/phone.js";
+import { Decimal } from "../utils/money.js";
+
+const EXPORT_MAX_ROWS = 10_000;
 
 async function checkDuplicateEmail(companyId, email, excludeVendorId = null) {
+  if (!email) return null;
   const existing = await prisma.vendor.findUnique({
-    where: { companyId_email: { companyId, email } },
+    where: { companyId_email: { companyId, email: email.toLowerCase() } },
   });
   if (existing && existing.id !== excludeVendorId && !existing.isDeleted) {
     return existing;
   }
   return null;
+}
+
+async function checkDuplicatePhone(companyId, phoneNumber, excludeVendorId = null) {
+  const normalizedPhone = normalizePhone(phoneNumber);
+  const existing = await prisma.vendor.findUnique({
+    where: { companyId_phoneNumber: { companyId, phoneNumber: normalizedPhone } },
+  });
+  if (existing && existing.id !== excludeVendorId && !existing.isDeleted) {
+    return existing;
+  }
+  return null;
+}
+
+/**
+ * Builds an address update payload from a submitted address object.
+ * Blank optional fields become null; line1 is only included when a
+ * non-blank value is provided because the column is NOT NULL — a blank
+ * line1 keeps the stored value instead of wiping it. Keys the client
+ * did not send are left out entirely so they stay unchanged.
+ */
+function buildAddressUpdateData(address) {
+  const data = {};
+  if (address.line1) data.line1 = address.line1;
+  if (address.line2 !== undefined) data.line2 = address.line2 || null;
+  if (address.city !== undefined) data.city = address.city || null;
+  if (address.state !== undefined) data.state = address.state || null;
+  if (address.country !== undefined) data.country = address.country || null;
+  if (address.postalCode !== undefined) data.postalCode = address.postalCode || null;
+  return data;
 }
 
 export async function createVendor({ companyId, userId, payload }) {
@@ -36,17 +70,38 @@ export async function createVendor({ companyId, userId, payload }) {
     sameAsBilling = true,
   } = payload;
 
-  const duplicate = await checkDuplicateEmail(companyId, email);
-  if (duplicate) {
-    const err = new Error("A vendor with this email already exists for your company.");
-    err.status = 409;
-    throw err;
+  if (phoneNumber && !normalizePhone(phoneNumber)) {
+    throw invalidPhoneError();
+  }
+  if (alternatePhone && !normalizePhone(alternatePhone)) {
+    throw invalidPhoneError();
   }
 
-  const addressesToCreate = [{ ...billingAddress, type: "BILLING" }];
-  if (sameAsBilling) {
+  if (email) {
+    const duplicate = await checkDuplicateEmail(companyId, email);
+    if (duplicate) {
+      const err = new Error("A vendor with this email already exists for your company.");
+      err.status = 409;
+      throw err;
+    }
+  }
+
+  if (phoneNumber) {
+    const duplicate = await checkDuplicatePhone(companyId, phoneNumber);
+    if (duplicate) {
+      const err = new Error("A vendor with this phone number already exists for your company.");
+      err.status = 409;
+      throw err;
+    }
+  }
+
+  const addressesToCreate = [];
+  if (billingAddress && billingAddress.line1) {
+    addressesToCreate.push({ ...billingAddress, type: "BILLING" });
+  }
+  if (sameAsBilling && billingAddress && billingAddress.line1) {
     addressesToCreate.push({ ...billingAddress, type: "SHIPPING" });
-  } else if (shippingAddress) {
+  } else if (shippingAddress && shippingAddress.line1) {
     addressesToCreate.push({ ...shippingAddress, type: "SHIPPING" });
   }
 
@@ -59,9 +114,9 @@ export async function createVendor({ companyId, userId, payload }) {
         contactPerson: contactPerson ? contactPerson.trim() : null,
         vendorType,
         category: category ? category.trim() : null,
-        email: email.trim().toLowerCase(),
-        phoneNumber: phoneNumber || null,
-        alternatePhone: alternatePhone || null,
+        email: email?.trim().toLowerCase() || null,
+        phoneNumber: phoneNumber ? normalizePhone(phoneNumber) : null,
+        alternatePhone: alternatePhone ? normalizePhone(alternatePhone) : null,
         taxNumber: taxNumber ? taxNumber.trim().toUpperCase() : null,
         panNumber: panNumber ? panNumber.trim().toUpperCase() : null,
         currency: currency || "INR",
@@ -82,8 +137,6 @@ export async function createVendor({ companyId, userId, payload }) {
   });
 }
 
-// Parses an optional numeric query filter. Returns null for anything that
-// isn't a finite number, so a junk value can never reach Prisma as NaN.
 function parseAmountFilter(value) {
   if (value === undefined || value === null || value === "") return null;
   const parsed = Number(value);
@@ -200,9 +253,6 @@ export async function getVendorById({ companyId, vendorId }) {
     throw err;
   }
 
-  // Linked Bills / Purchase Orders (relationship data)
-  // When the Bill / PurchaseOrder Prisma models are implemented, this connects directly.
-  // Currently returns structured financial link history ready for UI consumption.
   const linkedBills = [];
   const linkedPurchaseOrders = [];
 
@@ -216,6 +266,13 @@ export async function getVendorById({ companyId, vendorId }) {
 export async function updateVendor({ companyId, vendorId, payload }) {
   await getVendorById({ companyId, vendorId });
 
+  if (payload.phoneNumber && !normalizePhone(payload.phoneNumber)) {
+    throw invalidPhoneError();
+  }
+  if (payload.alternatePhone && !normalizePhone(payload.alternatePhone)) {
+    throw invalidPhoneError();
+  }
+
   if (payload.email) {
     const duplicate = await checkDuplicateEmail(companyId, payload.email, vendorId);
     if (duplicate) {
@@ -225,38 +282,68 @@ export async function updateVendor({ companyId, vendorId, payload }) {
     }
   }
 
+  if (payload.phoneNumber) {
+    const duplicate = await checkDuplicatePhone(companyId, payload.phoneNumber, vendorId);
+    if (duplicate) {
+      const err = new Error("Another vendor with this phone number already exists for your company.");
+      err.status = 409;
+      throw err;
+    }
+  }
+
   const { billingAddress, shippingAddress, sameAsBilling, ...vendorFields } = payload;
 
+  // Normalize phone numbers and blank optional strings. "" becomes
+  // null so a cleared field is stored as NULL, never as "".
+  if (vendorFields.phoneNumber) {
+    vendorFields.phoneNumber = normalizePhone(vendorFields.phoneNumber);
+  }
+  if (vendorFields.alternatePhone) {
+    vendorFields.alternatePhone = normalizePhone(vendorFields.alternatePhone);
+  }
+  for (const field of ["companyName", "contactPerson", "category", "email", "taxNumber", "panNumber", "notes", "bankAccountNumber", "bankIfsc", "bankName", "bankBranch"]) {
+    if (vendorFields[field] === "") {
+      vendorFields[field] = null;
+    }
+  }
+
   return prisma.$transaction(async (tx) => {
+    if (vendorFields.openingBalance !== undefined) {
+      const current = await tx.vendor.findFirst({
+        where: { id: vendorId, companyId, isDeleted: false },
+        select: { openingBalance: true },
+      });
+      if (!current) {
+        const err = new Error("Vendor not found");
+        err.status = 404;
+        throw err;
+      }
+
+      const nextOpeningBalance = new Decimal(vendorFields.openingBalance);
+      const openingBalanceDelta = nextOpeningBalance.minus(current.openingBalance);
+      if (openingBalanceDelta.isZero()) {
+        delete vendorFields.openingBalance;
+      } else {
+        vendorFields.openingBalance = nextOpeningBalance;
+        vendorFields.outstandingPayable = { increment: openingBalanceDelta };
+      }
+    }
+
     if (billingAddress) {
+      const addressData = buildAddressUpdateData(billingAddress);
+
       const existingBilling = await tx.vendorAddress.findFirst({
         where: { vendorId, type: "BILLING" },
       });
 
-      if (existingBilling) {
+      if (existingBilling && Object.keys(addressData).length) {
         await tx.vendorAddress.update({
           where: { id: existingBilling.id },
-          data: {
-            line1: billingAddress.line1,
-            line2: billingAddress.line2 ?? null,
-            city: billingAddress.city ?? null,
-            state: billingAddress.state ?? null,
-            country: billingAddress.country ?? null,
-            postalCode: billingAddress.postalCode ?? null,
-          },
+          data: addressData,
         });
-      } else {
+      } else if (!existingBilling && addressData.line1) {
         await tx.vendorAddress.create({
-          data: {
-            vendorId,
-            type: "BILLING",
-            line1: billingAddress.line1,
-            line2: billingAddress.line2 ?? null,
-            city: billingAddress.city ?? null,
-            state: billingAddress.state ?? null,
-            country: billingAddress.country ?? null,
-            postalCode: billingAddress.postalCode ?? null,
-          },
+          data: { vendorId, type: "BILLING", ...addressData },
         });
       }
 
@@ -265,30 +352,14 @@ export async function updateVendor({ companyId, vendorId, payload }) {
           where: { vendorId, type: "SHIPPING" },
         });
 
-        if (existingShipping) {
+        if (existingShipping && Object.keys(addressData).length) {
           await tx.vendorAddress.update({
             where: { id: existingShipping.id },
-            data: {
-              line1: billingAddress.line1,
-              line2: billingAddress.line2 ?? null,
-              city: billingAddress.city ?? null,
-              state: billingAddress.state ?? null,
-              country: billingAddress.country ?? null,
-              postalCode: billingAddress.postalCode ?? null,
-            },
+            data: addressData,
           });
-        } else {
+        } else if (!existingShipping && addressData.line1) {
           await tx.vendorAddress.create({
-            data: {
-              vendorId,
-              type: "SHIPPING",
-              line1: billingAddress.line1,
-              line2: billingAddress.line2 ?? null,
-              city: billingAddress.city ?? null,
-              state: billingAddress.state ?? null,
-              country: billingAddress.country ?? null,
-              postalCode: billingAddress.postalCode ?? null,
-            },
+            data: { vendorId, type: "SHIPPING", ...addressData },
           });
         }
       }
@@ -302,7 +373,6 @@ export async function updateVendor({ companyId, vendorId, payload }) {
   });
 }
 
-// Soft delete vendor (preserves data integrity for past bills / purchase orders)
 export async function deleteVendor({ companyId, vendorId }) {
   await getVendorById({ companyId, vendorId });
 
@@ -325,7 +395,6 @@ export async function updateVendorStatus({ companyId, vendorId, status }) {
   });
 }
 
-// Bulk Actions: ACTIVATE, DEACTIVATE, DELETE
 export async function bulkActionVendors({ companyId, vendorIds, action }) {
   const where = {
     companyId,
@@ -361,11 +430,12 @@ export async function bulkActionVendors({ companyId, vendorIds, action }) {
   throw new Error("Invalid bulk action requested.");
 }
 
-// Export dataset for vendors
 export async function getVendorsForExport({ companyId }) {
-  return prisma.vendor.findMany({
+  const rows = await prisma.vendor.findMany({
     where: { companyId, isDeleted: false },
     orderBy: { createdAt: "desc" },
+    take: EXPORT_MAX_ROWS + 1,
     include: { addresses: true },
   });
+  return { rows: rows.slice(0, EXPORT_MAX_ROWS), truncated: rows.length > EXPORT_MAX_ROWS };
 }

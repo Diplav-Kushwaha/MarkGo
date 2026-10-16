@@ -84,13 +84,24 @@ function Toggle({ checked, onChange, label, hint, disabled }) {
   );
 }
 
-export default function ItemFormModal({ isOpen, onClose, onSubmit, item, saving = false, serverError = "" }) {
+export default function ItemFormModal({
+  isOpen,
+  onClose,
+  onSubmit,
+  item,
+  saving = false,
+  serverError = "",
+  fixedType,
+}) {
   const isEdit = Boolean(item);
+  // fixedType locks the type on the split catalogue pages; without it the
+  // classification picker below stays available.
+  const initialType = fixedType || item?.type || "PRODUCT";
   // Mounted only while open, so initial values come straight from props.
   const [values, setValues] = useState(() =>
     isEdit
       ? {
-          type: item.type || "PRODUCT",
+          type: initialType,
           name: item.name || "",
           sku: item.sku || "",
           barcode: item.barcode || "",
@@ -108,7 +119,7 @@ export default function ItemFormModal({ isOpen, onClose, onSubmit, item, saving 
           discountType: item.discountType || "",
           discountValue:
             item.discountValue !== null && item.discountValue !== undefined ? String(item.discountValue) : "",
-          unit: item.unit || (item.type === "SERVICE" ? "hrs" : "pcs"),
+          unit: item.unit || (initialType === "SERVICE" ? "hrs" : "pcs"),
           trackInventory: Boolean(item.trackInventory),
           openingStock:
             item.openingStock !== null && item.openingStock !== undefined ? String(item.openingStock) : "0",
@@ -117,11 +128,17 @@ export default function ItemFormModal({ isOpen, onClose, onSubmit, item, saving 
           allowBackorder: Boolean(item.allowBackorder),
           description: item.description || "",
         }
-      : EMPTY_ITEM
+      : {
+          ...EMPTY_ITEM,
+          type: initialType,
+          unit: initialType === "SERVICE" ? "hrs" : "pcs",
+          trackInventory: initialType === "PRODUCT",
+        }
   );
   const [errors, setErrors] = useState({});
 
   const isService = values.type === "SERVICE";
+  const typeLabel = fixedType === "SERVICE" ? "service" : fixedType === "PRODUCT" ? "product" : "product or service";
 
   const setField = (field, value) => {
     setValues((previous) => ({ ...previous, [field]: value }));
@@ -176,7 +193,7 @@ export default function ItemFormModal({ isOpen, onClose, onSubmit, item, saving 
       isOpen={isOpen}
       onClose={onClose}
       width="w-full max-w-[480px]"
-      title={isEdit ? "Edit product or service" : "Add product or service"}
+      title={isEdit ? `Edit ${typeLabel}` : `Add ${typeLabel}`}
       description="Catalogue items you can invoice. Products track stock, services are billed by unit."
       footer={
         <>
@@ -184,7 +201,7 @@ export default function ItemFormModal({ isOpen, onClose, onSubmit, item, saving 
             Cancel
           </Button>
           <Button type="submit" form="item-form" loading={saving}>
-            {saving ? "Saving…" : isEdit ? "Save changes" : "Create item"}
+            {saving ? "Saving…" : isEdit ? "Save changes" : `Create ${typeLabel}`}
           </Button>
         </>
       }
@@ -196,44 +213,46 @@ export default function ItemFormModal({ isOpen, onClose, onSubmit, item, saving 
           </div>
         )}
 
-        {/* Classification */}
-        <fieldset className="space-y-2">
-          <legend className="text-sm font-medium text-ink">
-            Item classification <span className="text-danger">*</span>
-          </legend>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { value: "PRODUCT", label: "Product", hint: "Physical goods with stock", icon: Boxes },
-              { value: "SERVICE", label: "Service", hint: "Billable hours or units", icon: Wrench },
-            ].map((option) => {
-              const Icon = option.icon;
-              const selected = values.type === option.value;
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => changeType(option.value)}
-                  aria-pressed={selected}
-                  className={cn(
-                    "flex items-start gap-3 rounded-lg border p-3 text-left transition-colors",
-                    selected
-                      ? "border-primary-600 bg-primary-50 ring-1 ring-primary-600"
-                      : "border-line hover:border-line-strong hover:bg-slate-50"
-                  )}
-                >
-                  <Icon
-                    className={cn("mt-0.5 h-4 w-4 shrink-0", selected ? "text-primary-600" : "text-muted")}
-                    aria-hidden="true"
-                  />
-                  <span>
-                    <span className="block text-sm font-medium text-ink">{option.label}</span>
-                    <span className="block text-xs text-muted">{option.hint}</span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </fieldset>
+        {/* Classification — hidden when the page fixes the type */}
+        {!fixedType && (
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium text-ink">
+              Item classification <span className="text-danger">*</span>
+            </legend>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { value: "PRODUCT", label: "Product", hint: "Physical goods with stock", icon: Boxes },
+                { value: "SERVICE", label: "Service", hint: "Billable hours or units", icon: Wrench },
+              ].map((option) => {
+                const Icon = option.icon;
+                const selected = values.type === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => changeType(option.value)}
+                    aria-pressed={selected}
+                    className={cn(
+                      "flex items-start gap-3 rounded-lg border p-3 text-left transition-colors",
+                      selected
+                        ? "border-primary-600 bg-primary-50 ring-1 ring-primary-600"
+                        : "border-line hover:border-line-strong hover:bg-primary-50"
+                    )}
+                  >
+                    <Icon
+                      className={cn("mt-0.5 h-4 w-4 shrink-0", selected ? "text-primary-600" : "text-muted")}
+                      aria-hidden="true"
+                    />
+                    <span>
+                      <span className="block text-sm font-medium text-ink">{option.label}</span>
+                      <span className="block text-xs text-muted">{option.hint}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+        )}
 
         {/* Basics */}
         <section className="space-y-4 border-t border-line pt-5">

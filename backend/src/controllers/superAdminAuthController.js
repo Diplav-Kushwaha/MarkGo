@@ -22,6 +22,11 @@ export async function loginSuperAdmin(req, res) {
       return res.status(401).json({ success: false, message: "Invalid credentials." });
     }
 
+    if (user.isActive === false) {
+      logAuthEvent({ event: "LOGIN", success: false, email, userId: user.id, ip, reason: "inactive_account" });
+      return res.status(401).json({ success: false, message: "Invalid credentials." });
+    }
+
     if (user.lockUntil && user.lockUntil > new Date()) {
       const minutesLeft = Math.ceil((user.lockUntil.getTime() - Date.now()) / 60000);
       logAuthEvent({ event: "LOGIN", success: false, email, userId: user.id, ip, reason: "locked" });

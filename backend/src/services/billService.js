@@ -1,6 +1,6 @@
 import prisma from "../prisma.js";
 import { Decimal, toNumber, mapMoney, BILL_MONEY_FIELDS, BILL_ITEM_MONEY_FIELDS } from "../utils/money.js";
-import { generateDocumentNumber, getSettings } from "./settingsService.js";
+import { generateDocumentNumber, getSettings, isDocumentNumberUniqueConflict } from "./settingsService.js";
 import { recordBillPayment, markBillAsPaid } from "./paymentService.js";
 
 async function assertVendorUsable(vendorId, companyId) {
@@ -102,44 +102,55 @@ export async function createBill({ companyId, userId, payload }) {
     ? new Date(dueDate)
     : new Date(issueDate.getTime() + (settings.defaultPaymentTermsDays || 0) * 24 * 60 * 60 * 1000);
 
-  return prisma.$transaction(async (tx) => {
-    const billNumber = await generateDocumentNumber(tx, companyId, "bill");
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const billNumber = await generateDocumentNumber(tx, companyId, "bill");
 
-    const bill = await tx.bill.create({
-      data: {
-        companyId,
-        vendorId,
-        billNumber,
-        billDate: issueDate,
-        dueDate: due,
-        category: category?.trim() || null,
-        status: "UNPAID",
-        total,
-        amountPaid: 0,
-        amountDue: total,
-        currency: settings.currency || "INR",
-        notes: notes?.trim() || settings.billNotes || null,
-        attachmentUrl: attachmentUrl?.trim() || null,
-        createdById: userId,
-        ...(lineTotals.length ? { items: { create: buildItemCreates(lineTotals) } } : {}),
-      },
-      include: { items: true, vendor: { select: { id: true, name: true, email: true } } },
-    });
+        const bill = await tx.bill.create({
+          data: {
+            companyId,
+            vendorId,
+            billNumber,
+            billDate: issueDate,
+            dueDate: due,
+            category: category?.trim() || null,
+            status: "UNPAID",
+            total,
+            amountPaid: 0,
+            amountDue: total,
+            currency: settings.currency || "INR",
+            notes: notes?.trim() || settings.billNotes || null,
+            attachmentUrl: attachmentUrl?.trim() || null,
+            createdById: userId,
+            ...(lineTotals.length ? { items: { create: buildItemCreates(lineTotals) } } : {}),
+          },
+          include: { items: true, vendor: { select: { id: true, name: true, email: true } } },
+        });
 
-    await tx.vendor.update({
-      where: { id: vendorId },
-      data: {
-        totalPurchased: { increment: total },
-        outstandingPayable: { increment: total },
-        lastBillDate: issueDate,
-      },
-    });
+        await tx.vendor.update({
+          where: { id: vendorId },
+          data: {
+            totalPurchased: { increment: total },
+            outstandingPayable: { increment: total },
+            lastBillDate: issueDate,
+          },
+        });
 
-    return {
-      ...mapMoney(bill, BILL_MONEY_FIELDS),
-      items: bill.items.map((item) => mapMoney(item, BILL_ITEM_MONEY_FIELDS)),
-    };
-  });
+        return {
+          ...mapMoney(bill, BILL_MONEY_FIELDS),
+          items: bill.items.map((item) => mapMoney(item, BILL_ITEM_MONEY_FIELDS)),
+        };
+      });
+    } catch (err) {
+      if (!isDocumentNumberUniqueConflict(err, "billNumber")) throw err;
+      if (attempt === 3) {
+        const conflict = new Error("Bill number conflict, please retry.");
+        conflict.status = 409;
+        throw conflict;
+      }
+    }
+  }
 }
 
 export async function listBills({

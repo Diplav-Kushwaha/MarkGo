@@ -6,6 +6,7 @@ import {
   getPaymentSummary,
 } from "../controllers/paymentController.js";
 import { authenticateToken, requireCompanyAdmin } from "../middleware/authMiddleware.js";
+import { requireActiveSubscription } from "../middleware/requireActiveSubscription.js";
 import { verifyCsrfToken } from "../middleware/csrf.js";
 import { validate, validateQuery } from "../middleware/validate.js";
 import {
@@ -18,7 +19,7 @@ const router = Router();
 
 // One table backs money in (invoices) and money out (bills). A payment row is
 // tied to exactly one document, which the route shape makes explicit.
-router.use(authenticateToken, requireCompanyAdmin);
+router.use(authenticateToken, requireCompanyAdmin, requireActiveSubscription);
 
 router.get("/summary", validateQuery(paymentSummaryQuerySchema), getPaymentSummary);
 router.get("/", validateQuery(listPaymentsQuerySchema), getPayments);

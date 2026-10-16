@@ -13,6 +13,7 @@ import {
   lookupGstin,
 } from "../controllers/companyAdminCustomerController.js";
 import { authenticateToken, requireCompanyAdmin } from "../middleware/authMiddleware.js";
+import { requireActiveSubscription } from "../middleware/requireActiveSubscription.js";
 import { verifyCsrfToken } from "../middleware/csrf.js";
 import { validate } from "../middleware/validate.js";
 import {
@@ -25,7 +26,7 @@ import {
 const router = Router();
 
 // Every customer route requires a logged-in Company Admin.
-router.use(authenticateToken, requireCompanyAdmin);
+router.use(authenticateToken, requireCompanyAdmin, requireActiveSubscription);
 
 router.get("/stats", getCustomerStats);
 router.get("/export", exportCustomers);

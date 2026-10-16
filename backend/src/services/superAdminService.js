@@ -13,6 +13,8 @@ import { toNumber } from "../utils/money.js";
 // so expenses need no such exclusion — matching `thisMonthExpenses`.
 const REVENUE_STATUS_FILTER = { not: "CANCELLED" };
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 function monthWindow() {
   const now = new Date();
   return {
@@ -22,8 +24,11 @@ function monthWindow() {
 }
 
 // Every CompanyStatus value, so the dashboard always reports a zero for a
-// status that has no companies yet rather than omitting the key.
-const COMPANY_STATUSES = ["ACTIVE", "SUSPENDED", "CANCELLED"];
+// status that has no companies yet rather than omitting the key. PENDING_PAYMENT
+// must stay in this list: it is a real enum value, and the companies groupBy
+// below can return it, so leaving it out would drop those companies from
+// `byStatus` and make the statuses no longer add up to the total.
+const COMPANY_STATUSES = ["ACTIVE", "SUSPENDED", "CANCELLED", "PENDING_PAYMENT"];
 
 // Only these columns may be used for ordering. Guards against a caller-supplied
 // field name reaching Prisma, even though the validator already whitelists it.
@@ -159,10 +164,6 @@ export async function listCompanies({
         _count: {
           select: {
             users: true,
-            // Staff and accountants live in their own tables, so they cannot be
-            // reached through the User relation.
-            staff: true,
-            accountants: true,
             // Soft-deleted customers/vendors are excluded here so the list
             // agrees with getCompanyDetails.
             customers: { where: { isDeleted: false } },
@@ -210,8 +211,6 @@ export async function getPlatformDashboard() {
   const [
     totalCompanies,
     companiesByStatus,
-    totalStaff,
-    totalAccountants,
     totalVendors,
     totalCustomers,
     invoiceAgg,
@@ -220,8 +219,6 @@ export async function getPlatformDashboard() {
   ] = await Promise.all([
     prisma.company.count(),
     prisma.company.groupBy({ by: ["status"], _count: { _all: true } }),
-    prisma.staff.count(),
-    prisma.accountant.count(),
     prisma.vendor.count({ where: { isDeleted: false } }),
     prisma.customer.count({ where: { isDeleted: false } }),
     prisma.invoice.aggregate({
@@ -251,8 +248,6 @@ export async function getPlatformDashboard() {
       byStatus,
     },
     people: {
-      staff: totalStaff,
-      accountants: totalAccountants,
       vendors: totalVendors,
       customers: totalCustomers,
     },
@@ -315,7 +310,7 @@ export async function getCompanyDetails({ companyId }) {
   const window = monthWindow();
 
   // All counts and aggregates for the single company in the route param.
-  const [revenueAgg, expenseAgg, monthRevenueAgg, monthExpenseAgg, staffCount, accountantCount, customerCount, vendorCount, adminCount] =
+  const [revenueAgg, expenseAgg, monthRevenueAgg, monthExpenseAgg, customerCount, vendorCount, adminCount] =
     await Promise.all([
       prisma.invoice.aggregate({
         where: { companyId, status: REVENUE_STATUS_FILTER },
@@ -335,8 +330,6 @@ export async function getCompanyDetails({ companyId }) {
         where: { companyId, billDate: window },
         _sum: { total: true },
       }),
-      prisma.staff.count({ where: { companyId } }),
-      prisma.accountant.count({ where: { companyId } }),
       prisma.customer.count({ where: { companyId, isDeleted: false } }),
       prisma.vendor.count({ where: { companyId, isDeleted: false } }),
       prisma.user.count({ where: { companyId, role: "COMPANY_ADMIN" } }),
@@ -417,8 +410,6 @@ const totalRevenue = toNumber(revenueAgg._sum.grandTotal);
       billCount: expenseAgg._count.id,
     },
     counts: {
-      staff: staffCount,
-      accountants: accountantCount,
       customers: customerCount,
       vendors: vendorCount,
       companyAdmins: adminCount,

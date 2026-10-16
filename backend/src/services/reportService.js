@@ -14,11 +14,24 @@ const PAYABLE_STATUSES = ["UNPAID", "PARTIALLY_PAID"];
 const sumMoney = (rows, field) =>
   toNumber(rows.reduce((total, row) => total + toNumber(row[field]), 0));
 
+function resolveUtcDateRange(from, to) {
+  const startOfDay = (value) => {
+    const date = value instanceof Date ? value : new Date(value);
+    return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  };
+
+  return {
+    start: from ? startOfDay(from) : undefined,
+    end: to ? new Date(startOfDay(to).getTime() + 24 * 60 * 60 * 1000 - 1) : undefined,
+  };
+}
+
 export async function getSalesReport({ companyId, from, to }) {
+  const range = resolveUtcDateRange(from, to);
   const where = {
     companyId,
     status: { in: SALES_STATUSES },
-    invoiceDate: { gte: from, lte: to },
+    invoiceDate: { gte: range.start, lte: range.end },
   };
 
   const [invoices, groups] = await Promise.all([

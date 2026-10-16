@@ -28,11 +28,11 @@ const STATUS_LABELS = {
 };
 
 const TONES = {
-  success: "bg-success-soft text-green-700 ring-success-line",
-  warning: "bg-warning-soft text-amber-700 ring-warning-line",
+  success: "bg-success-soft text-green-800 ring-success-line",
+  warning: "bg-warning-soft text-amber-800 ring-warning-line",
   danger: "bg-danger-soft text-red-700 ring-danger-line",
-  info: "bg-info-soft text-sky-800 ring-info-line",
-  muted: "bg-muted-soft text-slate-600 ring-muted-line",
+  info: "bg-info-soft text-blue-800 ring-info-line",
+  muted: "bg-muted-soft text-slate-700 ring-muted-line",
   primary: "bg-primary-50 text-primary-700 ring-primary-200",
 };
 

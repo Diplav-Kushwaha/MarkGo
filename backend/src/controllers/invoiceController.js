@@ -81,6 +81,7 @@ export async function handleStatusAction(req, res) {
   try {
     const invoice = await invoiceService.handleStatusAction({
       companyId: req.user.companyId,
+      userId: req.user.userId,
       id: req.params.id,
       action: req.body.action,
     });

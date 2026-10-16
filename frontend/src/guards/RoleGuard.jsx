@@ -1,4 +1,3 @@
-import React from "react";
 import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import LoadingScreen from "../components/LoadingScreen";
@@ -19,10 +18,6 @@ export default function RoleGuard({ allowedRole }) {
       redirectPath = "/customer/dashboard";
     } else if (role === "VENDOR") {
       redirectPath = "/vendor/dashboard";
-    } else if (role === "STAFF") {
-      redirectPath = "/staff/dashboard";
-    } else if (role === "ACCOUNTANT") {
-      redirectPath = "/accountant/dashboard";
     }
     return <Navigate to={redirectPath} replace />;
   }

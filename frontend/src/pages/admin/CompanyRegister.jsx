@@ -4,7 +4,6 @@ import {
   Building2,
   Hash,
   Lock,
-  Mail,
   MapPin,
   Phone,
   User,
@@ -12,6 +11,7 @@ import {
 import { registerCompany } from "../../api/adminAuthApi";
 import { getPlans } from "../../api/subscriptionPublicApi";
 import { formatCurrency } from "../../lib/format";
+import { validatePhone } from "../../lib/phone";
 import AuthLayout, { AuthSubmitButton } from "../../components/auth/AuthLayout";
 import AuthField, {
   AuthAlert,
@@ -19,6 +19,15 @@ import AuthField, {
   AuthSectionHeading,
 } from "../../components/auth/AuthField";
 import { billingLabel, isFreePlan } from "../../components/subscription/planHelpers";
+
+const requiredLabel = (text) => (
+  <span>
+    {text}
+    <span aria-hidden="true" className="ml-0.5 text-red-500">
+      *
+    </span>
+  </span>
+);
 
 export default function CompanyRegister() {
   const navigate = useNavigate();
@@ -28,8 +37,6 @@ export default function CompanyRegister() {
   const [plan, setPlan] = useState(null);
   const [plansLoading, setPlansLoading] = useState(true);
 
-  // A plan must be chosen before registering: without one, or with an unknown
-  // one, the visitor goes back to the plans page.
   useEffect(() => {
     let active = true;
 
@@ -66,17 +73,11 @@ export default function CompanyRegister() {
   }, [planId, navigate]);
 
   const [formData, setFormData] = useState({
-    // Company Profile Fields
     companyName: "",
-    companyEmail: "",
     companyAddress: "",
-    gstNumber: "",
-    city: "",
-    country: "",
-    // Owner / Admin Fields
+    state: "",
     fullName: "",
     phoneNumber: "",
-    email: "",
     password: "",
   });
 
@@ -114,14 +115,22 @@ export default function CompanyRegister() {
       return;
     }
 
+    const phoneResult = validatePhone(formData.phoneNumber);
+    if (!phoneResult.valid) {
+      setFieldErrors({ phoneNumber: phoneResult.error });
+      setError("Please correct the errors highlighted below.");
+      return;
+    }
+
     try {
       setLoading(true);
-      // planId rides along so the backend knows which plan was chosen.
-      const res = await registerCompany({ ...formData, planId });
+      const res = await registerCompany({
+        ...formData,
+        phoneNumber: phoneResult.normalized,
+        planId,
+      });
 
       if (res.success) {
-        // A paid plan is not usable yet: send the user to the dummy payment
-        // page instead of signing them in.
         if (res.data?.requiresPayment && res.data?.payment?.id) {
           navigate(`/subscription-payment/${res.data.payment.id}`);
           return;
@@ -132,14 +141,10 @@ export default function CompanyRegister() {
           navigate("/admin/login");
         }, 1500);
       } else {
-        // The register endpoint answers 400/409/500 with { success: false },
-        // which axios resolves rather than throws — without this branch a failed
-        // registration looked like nothing happened.
         setError(res.message || "Registration failed. Please try again.");
       }
     } catch (err) {
       if (err.response?.data?.errors) {
-        // Backend Zod validation errors
         const mappedErrors = {};
         err.response.data.errors.forEach((item) => {
           mappedErrors[item.field] = item.message;
@@ -173,220 +178,169 @@ export default function CompanyRegister() {
       highlights={[
         { icon: Building2, text: "One workspace for your whole finance team" },
         { icon: Hash, text: "GST-ready invoices with HSN and tax rates" },
-        { icon: Lock, text: "Role-based access for staff and accountants" },
+        { icon: Lock, text: "Role-based access for your team" },
       ]}
       cardWidth="max-w-[680px]"
       footerLink={
-        <p className="text-sm text-slate-500">
-          Already have an account?{" "}
-          <Link
-            to="/admin/login"
-            className="font-semibold text-blue-800 hover:text-blue-700 hover:underline underline-offset-4"
-          >
-            Sign in
-          </Link>
-        </p>
+        <>
+          <p className="text-sm text-body">
+            Already have an account?{" "}
+            <Link
+              to="/admin/login"
+              className="font-semibold text-primary-800 hover:text-primary-700 hover:underline underline-offset-4"
+            >
+              Sign in
+            </Link>
+          </p>
+          <p className="mt-2 text-sm text-body">
+            <Link
+              to="/"
+              className="font-semibold text-primary-800 hover:text-primary-700 hover:underline underline-offset-4"
+            >
+              Back to home
+            </Link>
+          </p>
+        </>
       }
     >
       {plansLoading ? (
-        <p className="py-10 text-center text-sm text-slate-500">Loading your plan…</p>
+        <p className="py-10 text-center text-sm text-body">Loading your plan…</p>
       ) : (
         <>
-      <AuthAlert message={error} />
-      <AuthAlert message={successMsg} tone="success" />
+        <AuthAlert message={error} />
+        <AuthAlert message={successMsg} tone="success" />
 
-      {/* Selected plan */}
-      {plan && (
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-              Selected plan
-            </p>
-            <p className="mt-0.5 flex flex-wrap items-baseline gap-2">
-              <span className="text-sm font-bold text-slate-900">{plan.name}</span>
-              <span className="text-sm text-slate-600">
-                {isFreePlan(plan) ? "Free" : formatCurrency(plan.price)}
-              </span>
-              {!isFreePlan(plan) && (
-                <span className="text-xs text-slate-500">{billingLabel(plan)}</span>
-              )}
-            </p>
+        {plan && (
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-tile border border-primary-100 bg-primary-50/70 px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-muted">
+                Selected plan
+              </p>
+              <p className="mt-0.5 flex flex-wrap items-baseline gap-2">
+                <span className="text-sm font-bold text-ink">{plan.name}</span>
+                <span className="text-sm text-body">
+                  {isFreePlan(plan) ? "Free" : formatCurrency(plan.price)}
+                </span>
+                {!isFreePlan(plan) && (
+                  <span className="text-xs text-muted">{billingLabel(plan)}</span>
+                )}
+              </p>
+            </div>
+            <Link
+              to="/plans"
+              className="min-h-10 rounded-control border border-line bg-white px-3 py-1.5 text-xs font-semibold text-ink transition-colors hover:border-primary-300 hover:bg-primary-50 hover:text-primary-800"
+            >
+              Change plan
+            </Link>
           </div>
-          <Link
-            to="/plans"
-            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:border-blue-800 hover:text-blue-700"
-          >
-            Change plan
-          </Link>
-        </div>
-      )}
+        )}
 
-      <form className="mt-6 space-y-6" onSubmit={handleSubmit} noValidate>
-        {/* Section 1: Company Profile */}
-        <section className="space-y-4">
-          <AuthSectionHeading>Company Details</AuthSectionHeading>
+        <form className="mt-6 space-y-6" onSubmit={handleSubmit} noValidate>
+          <section className="space-y-4">
+            <AuthSectionHeading>Company details</AuthSectionHeading>
 
-          <AuthField
-            id="companyName"
-            name="companyName"
-            type="text"
-            label="Company name"
-            icon={Building2}
-            autoComplete="organization"
-            required
-            value={formData.companyName}
-            onChange={handleChange}
-            placeholder="Acme Technologies"
-            error={fieldErrors.companyName}
-            disabled={loading}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <AuthField
+                id="companyName"
+                name="companyName"
+                type="text"
+                label={requiredLabel("Company name")}
+                icon={Building2}
+                autoComplete="organization"
+                required
+                value={formData.companyName}
+                onChange={handleChange}
+                placeholder="Acme Technologies"
+                error={fieldErrors.companyName}
+                disabled={loading}
+              />
+
+              <AuthField
+                id="companyAddress"
+                name="companyAddress"
+                type="text"
+                label={requiredLabel("Company address")}
+                icon={MapPin}
+                required
+                value={formData.companyAddress}
+                onChange={handleChange}
+                placeholder="Suite 101, Tech Park"
+                error={fieldErrors.companyAddress}
+                disabled={loading}
+                className="sm:col-span-2"
+              />
+
+              <AuthField
+                id="state"
+                name="state"
+                type="text"
+                label={requiredLabel("State")}
+                icon={MapPin}
+                required
+                value={formData.state}
+                onChange={handleChange}
+                placeholder="Karnataka"
+                error={fieldErrors.state}
+                disabled={loading}
+              />
+            </div>
+          </section>
+
+          <section className="space-y-4 border-t border-line pt-6">
+            <AuthSectionHeading>Admin account</AuthSectionHeading>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <AuthField
+                id="fullName"
+                name="fullName"
+                type="text"
+                label={requiredLabel("Full name")}
+                icon={User}
+                autoComplete="name"
+                required
+                value={formData.fullName}
+                onChange={handleChange}
+                placeholder="John Doe"
+                error={fieldErrors.fullName}
+                disabled={loading}
+              />
+
+              <AuthField
+                id="phoneNumber"
+                name="phoneNumber"
+                type="tel"
+                label={requiredLabel("Phone number")}
+                icon={Phone}
+                autoComplete="tel"
+                required
+                value={formData.phoneNumber}
+                onChange={handleChange}
+                placeholder="9876543210"
+                error={fieldErrors.phoneNumber}
+                disabled={loading}
+                hint="10 digits. Used for login."
+              />
+
+              <AuthPasswordField
+                id="password"
+                name="password"
+                label={requiredLabel("Password")}
+                autoComplete="new-password"
+                required
+                value={formData.password}
+                onChange={handleChange}
+                error={fieldErrors.password}
+                disabled={loading}
+              />
+            </div>
+          </section>
+
+          <AuthSubmitButton
+            loading={loading}
+            idleLabel="Create Company Account"
+            loadingLabel="Registering…"
           />
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <AuthField
-              id="companyEmail"
-              name="companyEmail"
-              type="email"
-              label="Company email"
-              icon={Mail}
-              autoComplete="email"
-              required
-              value={formData.companyEmail}
-              onChange={handleChange}
-              placeholder="contact@acme.com"
-              error={fieldErrors.companyEmail}
-              disabled={loading}
-            />
-
-            <AuthField
-              id="gstNumber"
-              name="gstNumber"
-              type="text"
-              label="GST number (optional)"
-              icon={Hash}
-              required={false}
-              value={formData.gstNumber}
-              onChange={handleChange}
-              placeholder="22AAAAA0000A1Z5"
-              error={fieldErrors.gstNumber}
-              disabled={loading}
-            />
-          </div>
-
-          <AuthField
-            id="companyAddress"
-            name="companyAddress"
-            type="text"
-            label="Company address"
-            icon={MapPin}
-            required
-            value={formData.companyAddress}
-            onChange={handleChange}
-            placeholder="Suite 101, Tech Park"
-            error={fieldErrors.companyAddress}
-            disabled={loading}
-          />
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <AuthField
-              id="city"
-              name="city"
-              type="text"
-              label="City"
-              icon={MapPin}
-              required
-              value={formData.city}
-              onChange={handleChange}
-              placeholder="Bengaluru"
-              error={fieldErrors.city}
-              disabled={loading}
-            />
-
-            <AuthField
-              id="country"
-              name="country"
-              type="text"
-              label="Country"
-              icon={MapPin}
-              required
-              value={formData.country}
-              onChange={handleChange}
-              placeholder="India"
-              error={fieldErrors.country}
-              disabled={loading}
-            />
-          </div>
-        </section>
-
-        {/* Section 2: Administrator Profile */}
-        <section className="space-y-4 border-t border-slate-200 pt-6">
-          <AuthSectionHeading>Administrator Account</AuthSectionHeading>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <AuthField
-              id="fullName"
-              name="fullName"
-              type="text"
-              label="Full name"
-              icon={User}
-              autoComplete="name"
-              required
-              value={formData.fullName}
-              onChange={handleChange}
-              placeholder="John Doe"
-              error={fieldErrors.fullName}
-              disabled={loading}
-            />
-
-            <AuthField
-              id="phoneNumber"
-              name="phoneNumber"
-              type="tel"
-              label="Phone number"
-              icon={Phone}
-              autoComplete="tel"
-              required
-              value={formData.phoneNumber}
-              onChange={handleChange}
-              placeholder="+919876543210"
-              error={fieldErrors.phoneNumber}
-              disabled={loading}
-            />
-
-            <AuthField
-              id="email"
-              name="email"
-              type="email"
-              label="Admin login email"
-              icon={Mail}
-              autoComplete="username"
-              required
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="admin@acme.com"
-              error={fieldErrors.email}
-              disabled={loading}
-            />
-
-            <AuthPasswordField
-              id="password"
-              name="password"
-              label="Password"
-              autoComplete="new-password"
-              required
-              value={formData.password}
-              onChange={handleChange}
-              error={fieldErrors.password}
-              disabled={loading}
-            />
-          </div>
-        </section>
-
-        <AuthSubmitButton
-          loading={loading}
-          idleLabel="Create Company Account"
-          loadingLabel="Registering…"
-        />
-      </form>
+        </form>
         </>
       )}
     </AuthLayout>

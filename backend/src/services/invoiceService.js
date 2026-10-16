@@ -6,7 +6,7 @@ import {
   INVOICE_MONEY_FIELDS,
   INVOICE_ITEM_MONEY_FIELDS,
 } from "../utils/money.js";
-import { getSettings, generateDocumentNumber } from "./settingsService.js";
+import { getSettings, generateDocumentNumber, isDocumentNumberUniqueConflict } from "./settingsService.js";
 import { recordInvoicePayment } from "./paymentService.js";
 
 // Drafts that were never sent are the only invoices that may be removed, and
@@ -129,8 +129,50 @@ function buildItemCreates(processedItems) {
   }));
 }
 
+function sameInvoiceLine(line, existing) {
+  const decimalMatches = (left, right) =>
+    new Decimal(left ?? 0).equals(new Decimal(right ?? 0));
+
+  return (
+    (line.itemId ?? null) === (existing.itemId ?? null) &&
+    line.itemType === existing.itemType &&
+    String(line.description ?? "").trim() === String(existing.description ?? "").trim() &&
+    decimalMatches(line.quantity, existing.quantity) &&
+    decimalMatches(line.unitPrice, existing.unitPrice) &&
+    decimalMatches(line.taxRate, existing.taxRate) &&
+    decimalMatches(line.discount, existing.discount)
+  );
+}
+
+function assertInvoiceItemTypes(items, dbItems, existingLines = []) {
+  const itemById = new Map(dbItems.map((item) => [item.id, item]));
+  const unmatchedExistingLines = [...existingLines];
+
+  items.forEach((line, index) => {
+    const unchangedLineIndex = unmatchedExistingLines.findIndex((existing) =>
+      sameInvoiceLine(line, existing)
+    );
+
+    if (unchangedLineIndex !== -1) {
+      unmatchedExistingLines.splice(unchangedLineIndex, 1);
+      return;
+    }
+
+    if (!line.itemId) return;
+    const item = itemById.get(line.itemId);
+    if (item && line.itemType !== item.type) {
+      const err = new Error(`Line ${index + 1} type does not match the selected product or service.`);
+      err.status = 400;
+      throw err;
+    }
+  });
+}
+
 export async function createInvoice({ companyId, userId, payload }) {
   const { customerId, items, invoiceDate, dueDate, ...rest } = payload;
+  // Invoice currency comes from CompanySettings; the stored value is a
+  // snapshot so later settings changes do not rewrite existing invoices.
+  delete rest.currency;
 
   const customer = await prisma.customer.findFirst({
     where: { id: customerId, companyId, isDeleted: false },
@@ -152,6 +194,7 @@ export async function createInvoice({ companyId, userId, payload }) {
       err.status = 400;
       throw err;
     }
+    assertInvoiceItemTypes(items, dbItems);
   }
 
   const settings = await getSettings({ companyId });
@@ -166,39 +209,51 @@ export async function createInvoice({ companyId, userId, payload }) {
     Number(settings.defaultTaxPercent)
   );
 
-  return prisma.$transaction(async (tx) => {
-    const invoiceNumber = await generateDocumentNumber(tx, companyId, "invoice");
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const invoiceNumber = await generateDocumentNumber(tx, companyId, "invoice");
 
-    const invoice = await tx.invoice.create({
-      data: {
-        companyId,
-        customerId,
-        invoiceNumber,
-        invoiceDate: issueDate,
-        dueDate: due,
-        ...rest,
-        subtotal,
-        discountTotal,
-        taxTotal,
-        grandTotal,
-        amountDue: grandTotal,
-        createdById: userId,
-        items: { create: buildItemCreates(processedItems) },
-      },
-      include: { items: true, customer: true },
-    });
+        const invoice = await tx.invoice.create({
+          data: {
+            companyId,
+            customerId,
+            invoiceNumber,
+            invoiceDate: issueDate,
+            dueDate: due,
+            ...rest,
+            currency: settings.currency || "INR",
+            subtotal,
+            discountTotal,
+            taxTotal,
+            grandTotal,
+            amountDue: grandTotal,
+            createdById: userId,
+            items: { create: buildItemCreates(processedItems) },
+          },
+          include: { items: true, customer: true },
+        });
 
-    await tx.customer.update({
-      where: { id: customerId },
-      data: {
-        totalInvoiced: { increment: grandTotal },
-        outstandingBalance: { increment: grandTotal },
-        lastInvoiceDate: issueDate,
-      },
-    });
+        await tx.customer.update({
+          where: { id: customerId },
+          data: {
+            totalInvoiced: { increment: grandTotal },
+            outstandingBalance: { increment: grandTotal },
+            lastInvoiceDate: issueDate,
+          },
+        });
 
-    return invoice;
-  });
+        return invoice;
+      });
+    } catch (err) {
+      if (!isDocumentNumberUniqueConflict(err, "invoiceNumber")) throw err;
+      if (attempt === 3) {
+        const conflict = new Error("Invoice number conflict, please retry.");
+        conflict.status = 409;
+        throw conflict;
+      }
+    }
+  }
 }
 
 export async function listInvoices({
@@ -351,6 +406,8 @@ export async function updateInvoice({ companyId, id, payload }) {
 
   const { items, ...rest } = payload;
   const updateData = { ...rest };
+  // Currency is a document snapshot and cannot be changed through invoice edit.
+  delete updateData.currency;
   // Status belongs to handleStatusAction only. updateInvoiceSchema already omits
   // it, so this is defence in depth for any caller that reaches the service
   // directly.
@@ -419,13 +476,27 @@ export async function updateInvoice({ companyId, id, payload }) {
         const itemIds = [...new Set(items.filter((i) => i.itemId).map((i) => i.itemId))];
         const dbItems = await tx.item.findMany({
           where: { id: { in: itemIds }, companyId, isDeleted: false },
-          select: { id: true },
+          select: { id: true, type: true },
         });
         if (dbItems.length !== itemIds.length) {
           const err = new Error("One or more products/services not found or access denied.");
           err.status = 400;
           throw err;
         }
+
+        const existingLines = await tx.invoiceItem.findMany({
+          where: { invoiceId: id },
+          select: {
+            itemType: true,
+            itemId: true,
+            description: true,
+            quantity: true,
+            unitPrice: true,
+            taxRate: true,
+            discount: true,
+          },
+        });
+        assertInvoiceItemTypes(items, dbItems, existingLines);
       }
 
       // Conditional write on the totals we computed. Two edits of the same draft
@@ -552,7 +623,7 @@ export async function deleteInvoice({ companyId, id }) {
   });
 }
 
-export async function handleStatusAction({ companyId, id, action }) {
+export async function handleStatusAction({ companyId, userId, id, action }) {
   const invoice = await prisma.invoice.findFirst({
     where: { id, companyId },
   });
@@ -637,7 +708,7 @@ export async function handleStatusAction({ companyId, id, action }) {
       // balance still on the row, not the one from the initial read.
       const current = await tx.invoice.findFirst({
         where: { id, companyId },
-        select: { id: true, customerId: true, status: true, amountDue: true },
+        select: { id: true, customerId: true, status: true, grandTotal: true, amountDue: true },
       });
 
       if (!current) {
@@ -673,9 +744,10 @@ export async function handleStatusAction({ companyId, id, action }) {
           id,
           companyId,
           status: current.status,
+          grandTotal: current.grandTotal,
           amountDue: current.amountDue,
         },
-        data: { status: "PAID", amountPaid: invoice.grandTotal, amountDue: 0 },
+        data: { status: "PAID", amountPaid: current.grandTotal, amountDue: 0 },
       });
 
       // Lost the race: nothing was written and no balance moved.
@@ -696,7 +768,7 @@ export async function handleStatusAction({ companyId, id, action }) {
           method: "OTHER",
           note: "Marked as paid",
           paymentDate: new Date(),
-          recordedById: invoice.createdById,
+          recordedById: userId,
         },
       });
 

@@ -15,16 +15,15 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // happens to sort the enum.
 const BILLING_CYCLE_ORDER = { FREE: 0, MONTHLY: 1, YEARLY: 2 };
 
-/** The five plan limits. A null value means unlimited. */
+/** The four plan limits. A null value means unlimited. */
 function limitsOf(plan) {
-  if (!plan) return { users: null, staff: null, customers: null, vendors: null, invoices: null };
+  if (!plan) return { users: null, customers: null, vendors: null, invoices: null };
   return {
     users: plan.maxUsers ?? null,
-    staff: plan.maxStaff ?? null,
     customers: plan.maxCustomers ?? null,
     vendors: plan.maxVendors ?? null,
     invoices: plan.maxInvoices ?? null,
-  };
+  }
 }
 
 /**
@@ -45,7 +44,7 @@ export function toPlanDto(plan) {
   };
 }
 
-/** The five limit values for a plan. Used later for the Free-plan limits. */
+/** The four limit values for a plan. Used later for the Free-plan limits. */
 export function getSubscriptionLimits(plan) {
   return limitsOf(plan);
 }

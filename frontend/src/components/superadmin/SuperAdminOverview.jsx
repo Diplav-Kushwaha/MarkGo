@@ -5,10 +5,8 @@ import {
   ArrowUpRight,
   Building2,
   FileText,
-  Landmark,
   Receipt,
   TrendingUp,
-  UserCog,
   Users,
 } from "lucide-react";
 import { getSuperAdminDashboard } from "../../api/superAdminAuthApi";
@@ -39,7 +37,7 @@ function MetricCard({ label, value, hint, icon: Icon, title }) {
       <div className="flex items-start justify-between gap-3">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
         {Icon && (
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-800">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-tile bg-primary-50 text-primary-700">
             <Icon className="h-4 w-4" aria-hidden="true" />
           </span>
         )}
@@ -192,10 +190,13 @@ export default function SuperAdminOverview({ onNavigateTab }) {
   const isProfit = profitOrLoss >= 0;
 
   // Status segments straight from the backend, with a colour per real status.
+  // `label` is optional: when present it replaces the key-derived text, which is
+  // how PENDING_PAYMENT reads as "Pending payment" instead of "Pending_payment".
   const STATUS_META = {
     ACTIVE: { color: "bg-emerald-500", chip: "emerald" },
     SUSPENDED: { color: "bg-amber-500", chip: "amber" },
     CANCELLED: { color: "bg-slate-400", chip: "slate" },
+    PENDING_PAYMENT: { color: "bg-amber-500", chip: "amber", label: "Pending payment" },
   };
   const statusRows = Object.entries(byStatus)
     .map(([key, value]) => ({
@@ -245,9 +246,7 @@ export default function SuperAdminOverview({ onNavigateTab }) {
       </div>
 
       {/* People counts */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MiniMetricCard label="Staff" value={formatCount(people.staff)} icon={UserCog} />
-        <MiniMetricCard label="Accountants" value={formatCount(people.accountants)} icon={Landmark} />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <MiniMetricCard label="Vendors" value={formatCount(people.vendors)} icon={Building2} />
         <MiniMetricCard label="Customers" value={formatCount(people.customers)} icon={Users} />
       </div>
@@ -292,7 +291,7 @@ export default function SuperAdminOverview({ onNavigateTab }) {
                           className={`h-2.5 w-2.5 rounded-full ${row.meta.color}`}
                           aria-hidden="true"
                         />
-                        {row.key.charAt(0) + row.key.slice(1).toLowerCase()}
+                        {row.meta.label || row.key.charAt(0) + row.key.slice(1).toLowerCase()}
                       </span>
                       <span className="flex items-center gap-3">
                         <span className="text-slate-400 tabular-nums">

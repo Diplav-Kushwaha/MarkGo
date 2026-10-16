@@ -94,6 +94,7 @@ export default function AssignPlanModal({
       <Modal
         isOpen={isOpen}
         onClose={onClose}
+        className="sa-modal-theme"
         size="sm"
         title="Plan assigned"
         footer={
@@ -137,6 +138,7 @@ export default function AssignPlanModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
+      className="sa-modal-theme"
       size="md"
       title="Assign plan"
       description={company?.name}
@@ -260,7 +262,7 @@ export default function AssignPlanModal({
                     checked={payment === option.value}
                     onChange={() => setPayment(option.value)}
                     disabled={saving}
-                    className="mt-0.5 h-4 w-4 border-slate-300 text-blue-800 focus:ring-2 focus:ring-blue-200"
+                    className="mt-0.5 h-4 w-4 border-line-strong text-primary-700 focus:ring-2 focus:ring-primary-200"
                   />
                   <span>
                     <span className="block text-sm font-medium text-slate-800">

@@ -32,7 +32,6 @@ const PLANS = [
     durationMonths: null,
     description: "Get started with the essentials. Never expires.",
     maxUsers: 2,
-    maxStaff: 2,
     maxCustomers: 10,
     maxVendors: 10,
     maxInvoices: 20,
@@ -46,7 +45,6 @@ const PLANS = [
     durationMonths: 1,
     description: "Everything you need, billed every month. No limits.",
     maxUsers: null,
-    maxStaff: null,
     maxCustomers: null,
     maxVendors: null,
     maxInvoices: null,
@@ -60,7 +58,6 @@ const PLANS = [
     durationMonths: 12,
     description: "Everything you need, billed once a year. No limits.",
     maxUsers: null,
-    maxStaff: null,
     maxCustomers: null,
     maxVendors: null,
     maxInvoices: null,
@@ -74,7 +71,7 @@ const PLANS = [
  * isActive, description, sortOrder and the pre-existing limit columns, so
  * re-running can never quietly re-price a plan a Super Admin has edited.
  */
-const BACKFILL_FIELDS = ["billingCycle", "durationMonths", "maxVendors", "maxStaff"];
+const BACKFILL_FIELDS = ["billingCycle", "durationMonths", "maxVendors"];
 const PRESERVED_FIELDS = [
   "price",
   "isActive",
@@ -107,7 +104,7 @@ async function main() {
         `         price=${money(plan.price)}  cycle=${plan.billingCycle}  durationMonths=${plan.durationMonths ?? "(none)"}`
       );
       console.log(
-        `         limits: users=${plan.maxUsers ?? "∞"} staff=${plan.maxStaff ?? "∞"} customers=${plan.maxCustomers ?? "∞"} vendors=${plan.maxVendors ?? "∞"} invoices=${plan.maxInvoices ?? "∞"}`
+        `         limits: users=${plan.maxUsers ?? "∞"} customers=${plan.maxCustomers ?? "∞"} vendors=${plan.maxVendors ?? "∞"} invoices=${plan.maxInvoices ?? "∞"}`
       );
 
       if (APPLY) {
@@ -119,7 +116,6 @@ async function main() {
             billingCycle: plan.billingCycle,
             durationMonths: plan.durationMonths,
             maxUsers: plan.maxUsers,
-            maxStaff: plan.maxStaff,
             maxCustomers: plan.maxCustomers,
             maxVendors: plan.maxVendors,
             maxInvoices: plan.maxInvoices,

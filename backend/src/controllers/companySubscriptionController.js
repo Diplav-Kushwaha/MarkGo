@@ -8,6 +8,19 @@ import * as companySubscriptionService from "../services/companySubscriptionServ
  * or change another's subscription.
  */
 
+/**
+ * What the browser is told about a failure. Errors we raise on purpose carry a
+ * status and a message meant for the user, so they pass through untouched. An
+ * unexpected one (a bad query, a dropped connection) has no status and its
+ * message is raw driver text, so in production the client gets a generic line —
+ * the full error has already been logged above.
+ */
+function clientMessage(err) {
+  if (err.status) return err.message;
+  if (process.env.NODE_ENV === "production") return "Something went wrong. Please try again.";
+  return err.message || "Internal server error.";
+}
+
 /** GET /api/admin/subscription */
 export async function getMySubscription(req, res) {
   try {
@@ -19,7 +32,7 @@ export async function getMySubscription(req, res) {
     console.error("getMySubscription error:", err);
     return res
       .status(err.status || 500)
-      .json({ success: false, message: err.message || "Internal server error." });
+      .json({ success: false, message: clientMessage(err) });
   }
 }
 
@@ -37,7 +50,7 @@ export async function getMyHistory(req, res) {
     console.error("getMyHistory error:", err);
     return res
       .status(err.status || 500)
-      .json({ success: false, message: err.message || "Internal server error." });
+      .json({ success: false, message: clientMessage(err) });
   }
 }
 
@@ -56,7 +69,7 @@ export async function purchasePlan(req, res) {
       .status(err.status || 500)
       .json({
         success: false,
-        message: err.message || "Internal server error.",
+        message: clientMessage(err),
         ...(err.data ? { data: err.data } : {}),
       });
   }
@@ -77,7 +90,7 @@ export async function startFree(req, res) {
       .status(err.status || 500)
       .json({
         success: false,
-        message: err.message || "Internal server error.",
+        message: clientMessage(err),
         ...(err.data ? { data: err.data } : {}),
       });
   }

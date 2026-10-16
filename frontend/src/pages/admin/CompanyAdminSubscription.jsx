@@ -503,7 +503,7 @@ export default function CompanyAdminSubscription() {
               {/* Desktop table */}
               <div className="hidden overflow-x-auto lg:block">
                 <table className="w-full text-left text-sm">
-                  <thead className="border-b border-line bg-slate-50">
+                  <thead className="border-b border-line bg-primary-50/60">
                     <tr>
                       {["Plan", "Period", "Price", "Status", "Started by", "Payments"].map(
                         (heading) => (

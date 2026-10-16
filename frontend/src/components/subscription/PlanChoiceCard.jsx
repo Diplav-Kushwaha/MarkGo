@@ -27,7 +27,7 @@ export default function PlanChoiceCard({
           </p>
         </div>
         {isCurrent && (
-          <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-semibold text-blue-800">
+          <span className="rounded-full bg-primary-50 px-2.5 py-0.5 text-[11px] font-semibold text-primary-800">
             Current plan
           </span>
         )}

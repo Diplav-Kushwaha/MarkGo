@@ -47,16 +47,21 @@ function effectiveStatusOf(subscription) {
 
 /** Closes a set of subscriptions and any payments still pending against them. */
 async function closeSubscriptions(tx, subscriptions) {
-  for (const subscription of subscriptions) {
-    await tx.subscriptionPayment.updateMany({
-      where: { subscriptionId: subscription.id, status: "PENDING" },
-      data: { status: CLOSED_PAYMENT_STATUS },
-    });
-    await tx.subscription.update({
-      where: { id: subscription.id },
-      data: { status: "CANCELLED" },
-    });
-  }
+  const ids = subscriptions.map((subscription) => subscription.id);
+  if (ids.length === 0) return;
+
+  await tx.subscription.updateMany({
+    where: { id: { in: ids } },
+    data: { status: "CANCELLED" },
+  });
+
+  // Flat `in` filter on the subscriptions just cancelled. A Prisma filter object
+  // can never contain the field it filters on, and these rows are found by
+  // subscriptionId, so payments belonging to no subscription are left alone.
+  await tx.subscriptionPayment.updateMany({
+    where: { status: "PENDING", subscriptionId: { in: ids } },
+    data: { status: CLOSED_PAYMENT_STATUS },
+  });
 }
 
 /** GET /api/admin/subscription — the company's current subscription. */

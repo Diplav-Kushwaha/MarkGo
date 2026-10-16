@@ -37,7 +37,6 @@ const emptyForm = () => ({
   customerName: "",
   invoiceDate: new Date().toISOString().split("T")[0],
   dueDate: new Date(+new Date() + 15 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-  currency: "INR",
   notes: "",
   termsAndConditions: "",
   items: [emptyItem()],
@@ -77,7 +76,6 @@ export default function CompanyAdminInvoiceForm({ invoiceId, onBack, onSuccess }
             customerName: inv.customer?.name || "",
             invoiceDate: inv.invoiceDate.split("T")[0],
             dueDate: inv.dueDate.split("T")[0],
-            currency: inv.currency,
             notes: inv.notes || "",
             termsAndConditions: inv.termsAndConditions || "",
             items: inv.items.map((item) => ({
@@ -277,7 +275,7 @@ export default function CompanyAdminInvoiceForm({ invoiceId, onBack, onSuccess }
                     <col className="w-[130px]" />
                     <col className="w-[48px]" />
                   </colgroup>
-                  <thead className="border-b border-line bg-slate-50">
+                  <thead className="border-b border-line bg-primary-50/60">
                     <tr>
                       <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-body">
                         Type
@@ -389,7 +387,7 @@ export default function CompanyAdminInvoiceForm({ invoiceId, onBack, onSuccess }
                 rows={4}
                 value={form.notes}
                 onChange={(e) => setField("notes", e.target.value)}
-                placeholder="Private notes for company staff…"
+                placeholder="Private notes for internal use…"
               />
             </CardBody>
           </Card>

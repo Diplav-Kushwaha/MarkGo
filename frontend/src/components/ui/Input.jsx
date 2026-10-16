@@ -2,13 +2,13 @@ import { forwardRef, useId } from "react";
 import { cn } from "../../lib/cn";
 
 const CONTROL_BASE =
-  "w-full rounded-lg border bg-surface px-3 text-sm text-ink transition-colors placeholder:text-muted " +
-  "focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-muted";
+  "w-full rounded-control border border-line bg-white px-3 text-sm text-ink transition-all duration-150 placeholder:text-muted " +
+  "focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500/20 disabled:cursor-not-allowed disabled:bg-muted-soft disabled:text-muted";
 
 const CONTROL_STATE = (invalid) =>
   invalid
     ? "border-danger focus:border-danger focus:ring-red-500/20"
-    : "border-line focus:border-primary-600 focus:ring-primary-600/20";
+    : "border-line-control focus:border-primary-500 focus:ring-primary-500/20";
 
 export function Field({ label, htmlFor, required, error, hint, className, children }) {
   return (
@@ -44,7 +44,7 @@ const Input = forwardRef(function Input(
       className={cn(
         CONTROL_BASE,
         CONTROL_STATE(error),
-        "h-9",
+        "h-11",
         prefix ? "pl-7" : "",
         className
       )}

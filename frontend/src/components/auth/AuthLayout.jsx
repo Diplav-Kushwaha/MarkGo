@@ -12,7 +12,7 @@ import { ArrowRight, Loader2 } from "lucide-react";
 export function MarkGoLogo({ className = "", onDark = false }) {
   return (
     <div className={`flex items-center gap-2.5 ${className}`}>
-      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-800 text-white shadow-sm">
+      <span className="flex h-10 w-10 items-center justify-center rounded-control bg-[#111A3A] text-white shadow-sm">
         <svg
           viewBox="0 0 40 32"
           fill="none"
@@ -36,10 +36,10 @@ export function MarkGoLogo({ className = "", onDark = false }) {
       </span>
       <span
         className={`text-xl font-bold tracking-tight ${
-          onDark ? "text-white" : "text-slate-900"
+          onDark ? "text-white" : "text-ink"
         }`}
       >
-        Mark<span className={onDark ? "text-teal-300" : "text-blue-800"}>Go</span>
+        Mark<span className={onDark ? "text-purple-200" : "text-primary-700"}>Go</span>
       </span>
     </div>
   );
@@ -51,7 +51,7 @@ export function AuthSubmitButton({ loading, idleLabel, loadingLabel = "Signing i
     <button
       type="submit"
       disabled={loading}
-      className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200 disabled:cursor-not-allowed disabled:opacity-60"
+      className="flex min-h-11 w-full items-center justify-center gap-2 rounded-control bg-[#111A3A] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#1B2550] focus:outline-none focus:ring-4 focus:ring-primary-200 disabled:cursor-not-allowed disabled:opacity-60"
     >
       {loading ? (
         <>
@@ -73,8 +73,6 @@ export function AuthSubmitButton({ loading, idleLabel, loadingLabel = "Signing i
  * the page body never scrolls. `dvh` tracks mobile browser chrome, which `vh`
  * does not.
  */
-const SCREEN_H = "h-[calc(100dvh-4rem)]";
-
 export default function AuthLayout({
   badge,
   badgeIcon: BadgeIcon,
@@ -90,7 +88,7 @@ export default function AuthLayout({
   showMobileLogo = true,
 }) {
   return (
-    <div className={`flex ${SCREEN_H} overflow-hidden bg-slate-100`}>
+    <div className="mx-auto grid min-h-[calc(100dvh-4rem)] w-full max-w-7xl grid-cols-1 items-center gap-6 bg-transparent px-4 pb-8 pt-6 sm:px-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:gap-8 lg:px-8 lg:py-8">
       {/*
         Brand panel — desktop only.
         One fixed-height, vertically centred column with a constant gap, so a
@@ -100,18 +98,18 @@ export default function AuthLayout({
         laptop viewport.
       */}
       <section
-        className="relative hidden w-1/2 flex-col justify-center gap-5 overflow-hidden bg-gradient-to-br from-blue-900 via-blue-800 to-slate-900 p-8 [@media(max-height:820px)]:gap-4 [@media(max-height:820px)]:p-6 [@media(max-height:620px)]:gap-3 [@media(max-height:620px)]:p-5 lg:flex"
+        className="relative flex min-h-[280px] w-full flex-col justify-center gap-4 overflow-hidden rounded-frame border border-primary-100 bg-gradient-to-br from-[#12172F] via-[#26306A] to-[#4F46E5] p-6 shadow-pop sm:min-h-[320px] sm:p-8 lg:min-h-[560px] lg:gap-5"
       >
         <div
-          className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-teal-400/10 blur-2xl"
+          className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-purple-300/20 blur-2xl"
           aria-hidden="true"
         />
         <div
-          className="pointer-events-none absolute -bottom-28 -left-16 h-80 w-80 rounded-full bg-blue-500/10 blur-2xl"
+          className="pointer-events-none absolute -bottom-28 -left-16 h-80 w-80 rounded-full bg-pink-300/10 blur-2xl"
           aria-hidden="true"
         />
 
-        <div className="relative shrink-0">
+        <div className="relative hidden shrink-0 lg:block">
           <MarkGoLogo onDark />
         </div>
 
@@ -123,7 +121,7 @@ export default function AuthLayout({
           )}
 
           {description && (
-            <p className="mt-3 max-w-md text-sm leading-relaxed text-blue-100/80 [@media(max-height:560px)]:hidden">
+            <p className="mt-3 max-w-md text-sm leading-relaxed text-white/80 [@media(max-height:560px)]:hidden">
               {description}
             </p>
           )}
@@ -134,10 +132,10 @@ export default function AuthLayout({
                 const Icon = item.icon;
                 return (
                   <li key={item.text} className="flex items-start gap-3">
-                    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10 text-teal-300">
+                    <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-tile bg-white/10 text-purple-200">
                       <Icon className="h-4 w-4" aria-hidden="true" />
                     </span>
-                    <span className="text-sm text-blue-50/90">{item.text}</span>
+                    <span className="text-sm text-white/90">{item.text}</span>
                   </li>
                 );
               })}
@@ -146,15 +144,15 @@ export default function AuthLayout({
         </div>
 
         {footerNote && (
-          <p className="relative shrink-0 text-xs text-blue-200/60 [@media(max-height:400px)]:hidden">
+          <p className="relative shrink-0 text-xs text-white/65 [@media(max-height:400px)]:hidden">
             {footerNote}
           </p>
         )}
       </section>
 
       {/* Form area — the only part that scrolls, on every screen size */}
-      <section className={`${SCREEN_H} w-full overflow-y-auto lg:w-1/2`}>
-        <div className="flex min-h-full flex-col items-center justify-center px-4 py-10 sm:px-8 lg:py-12">
+      <section className="min-w-0 w-full">
+        <div className="flex min-h-full flex-col items-center justify-center py-2 sm:px-2 lg:py-6">
           {showMobileLogo && (
             <div className="mb-6 w-full lg:hidden">
               <div className="flex justify-center">
@@ -164,18 +162,18 @@ export default function AuthLayout({
           )}
 
           <div className={`w-full ${cardWidth}`}>
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/60 sm:p-8">
+            <div className="rounded-card border border-primary-100 bg-white p-6 shadow-pop sm:p-8">
               <div className="text-center">
                 {badge && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-blue-800">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-primary-800">
                     {BadgeIcon && <BadgeIcon className="h-3.5 w-3.5" aria-hidden="true" />}
                     {badge}
                   </span>
                 )}
-                <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-900">
+                <h1 className="mt-4 text-2xl font-bold tracking-tight text-ink">
                   {title}
                 </h1>
-                {subtitle && <p className="mt-1.5 text-sm text-slate-500">{subtitle}</p>}
+                {subtitle && <p className="mt-1.5 text-sm text-body">{subtitle}</p>}
               </div>
 
               {children}

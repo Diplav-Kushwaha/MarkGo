@@ -13,6 +13,7 @@ import {
   emailInvoice,
 } from "../controllers/invoiceController.js";
 import { authenticateToken, requireCompanyAdmin } from "../middleware/authMiddleware.js";
+import { requireActiveSubscription } from "../middleware/requireActiveSubscription.js";
 import { verifyCsrfToken } from "../middleware/csrf.js";
 import { validate, validateQuery } from "../middleware/validate.js";
 import {
@@ -25,8 +26,8 @@ import {
 
 const router = Router();
 
-// Invoices require a logged-in Company Admin or Accountant (accountant check can be added if middleware exists)
-router.use(authenticateToken, requireCompanyAdmin);
+// Invoices require a logged-in Company Admin
+router.use(authenticateToken, requireCompanyAdmin, requireActiveSubscription);
 
 router.get("/summary", getInvoiceSummary);
 

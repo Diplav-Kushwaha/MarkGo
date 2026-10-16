@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   BarChart3,
   CalendarRange,
@@ -12,6 +13,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { getOutstandingReport, getSalesReport } from "../../api/reportAdminApi";
+import { REPORT_CATALOGUE } from "../../lib/reportConstants";
 import InvoiceStatusBadge from "../../components/invoices/InvoiceStatusBadge";
 import { formatCurrency, formatDate, humanize } from "../../lib/format";
 import { PRINT_STYLES, escapeHtml, openPrintWindow } from "../../lib/print";
@@ -638,6 +640,48 @@ const TABS = [
   { key: "OUTSTANDING", label: "Outstanding" },
 ];
 
+/**
+ * The ten reports as cards, grouped by what they cover. They live here rather
+ * than in the sidebar, which keeps a single "Reports" item; the existing Sales
+ * report and Outstanding tabs stay below, unchanged.
+ */
+function ReportCards() {
+  return (
+    <div className="space-y-5">
+      {REPORT_CATALOGUE.map((section) => (
+        <section key={section.group}>
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
+            {section.group}
+          </h2>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {section.items.map((report) => {
+              const Icon = report.icon;
+
+              return (
+                <Link
+                  key={report.key}
+                  to={report.to}
+                  className="group rounded-lg border border-line bg-surface p-4 shadow-card transition-colors hover:border-primary-300 hover:bg-primary-50/40"
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-700 transition-colors group-hover:bg-primary-100">
+                      <Icon className="h-4.5 w-4.5" aria-hidden="true" />
+                    </span>
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-ink">{report.label}</div>
+                      <p className="mt-0.5 text-xs text-muted">{report.description}</p>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
 export default function CompanyAdminReport() {
   const [activeTab, setActiveTab] = useState("SALES");
 
@@ -648,7 +692,9 @@ export default function CompanyAdminReport() {
         subtitle="Analyse sales performance and track who owes you and whom you owe."
       />
 
-      <div className="mb-4 inline-flex rounded-lg border border-line bg-surface p-1 shadow-card">
+      <ReportCards />
+
+      <div className="mb-4 mt-6 inline-flex rounded-lg border border-line bg-surface p-1 shadow-card">
         {TABS.map((tab) => (
           <button
             key={tab.key}
@@ -656,7 +702,7 @@ export default function CompanyAdminReport() {
             onClick={() => setActiveTab(tab.key)}
             aria-pressed={activeTab === tab.key}
             className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
-              activeTab === tab.key ? "bg-primary-600 text-white" : "text-body hover:bg-slate-100"
+              activeTab === tab.key ? "bg-primary-600 text-white" : "text-body hover:bg-primary-50"
             }`}
           >
             {tab.label}

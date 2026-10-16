@@ -16,6 +16,7 @@ export function CompanyStatusModal({ open, company, onClose, onConfirm, saving =
     <Modal
       isOpen={open}
       onClose={onClose}
+      className="sa-modal-theme"
       size="sm"
       title={deactivating ? "Deactivate company" : "Activate company"}
       footer={
@@ -66,6 +67,7 @@ export function DeletePendingModal({ open, company, onClose, onConfirm, saving =
     <Modal
       isOpen={open}
       onClose={onClose}
+      className="sa-modal-theme"
       size="sm"
       title="Delete pending company"
       footer={
@@ -108,6 +110,7 @@ export function InlineDeleteConfirm({ open, onClose, onConfirm, saving = false, 
     <Modal
       isOpen={open}
       onClose={onClose}
+      className="sa-modal-theme"
       size="sm"
       title="Delete the pending company?"
       footer={
@@ -148,7 +151,7 @@ export function InlineDeleteConfirm({ open, onClose, onConfirm, saving = false, 
           type="checkbox"
           checked={ack}
           onChange={(e) => setAck(e.target.checked)}
-          className="h-4 w-4 rounded border-slate-300 text-blue-800 focus:ring-2 focus:ring-blue-200"
+          className="h-4 w-4 rounded border-line-strong text-primary-700 focus:ring-2 focus:ring-primary-200"
         />
         I understand this cannot be undone.
       </label>
